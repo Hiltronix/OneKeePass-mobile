@@ -64,7 +64,22 @@ echo "==> Compiling arm64 Rust library and generating Kotlin bindings"
 (cd db-service-ffi && just bca-r)
 
 echo "==> Compiling unsigned release APK (FOSS build)"
-(cd android && ./gradlew clean assembleRelease)
+if [[ -f android/gradle/wrapper/gradle-wrapper.jar ]]; then
+    (cd android && ./gradlew clean assembleRelease)
+else
+    # Upstream excludes the Gradle wrapper JAR via *.jar in .gitignore.
+    # A separately installed Gradle of the exact wrapper version is needed.
+    command -v gradle >/dev/null 2>&1 || {
+        echo "Missing android/gradle/wrapper/gradle-wrapper.jar and Gradle 9.3.1." >&2
+        echo "Install Gradle 9.3.1 or generate the wrapper with a trusted Gradle installation." >&2
+        exit 1
+    }
+    gradle --version | grep -Eq '^Gradle 9\.3\.1([[:space:]]|$)' || {
+        echo "Installed Gradle must be version 9.3.1." >&2
+        exit 1
+    }
+    (cd android && gradle clean assembleRelease)
+fi
 
 apk="$root/android/app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk"
 if [[ ! -s "$apk" ]]; then
