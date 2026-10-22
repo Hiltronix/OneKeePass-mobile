@@ -195,12 +195,17 @@ android-lib-output-dir := "target/jniLibs"
 
 
 #28.2.13676358 is the NDK version with 16KB page size
-ndk_version := "28.2.13676358/android-ndk-r28c" 
+# Use the Android SDK Manager's side-by-side NDK directory on macOS or Linux.
+# Override OKP_ANDROID_NDK_HOME when a specific validated NDK installation is elsewhere.
+ndk_version := "28.2.13676358"
 ndk_api_level := "31"
-ndk_cxx_ver :=  "aarch64-linux-android"+ndk_api_level+"-clang++"  
-ndk_botan_build_home := env_var('HOME')+"/Library/Android/sdk/ndk/" + ndk_version
-ndk_ar := ndk_botan_build_home + "/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"
-ndk_cxx := ndk_botan_build_home + "/toolchains/llvm/prebuilt/darwin-x86_64/bin/" + ndk_cxx_ver
+ndk_cxx_ver := "aarch64-linux-android" + ndk_api_level + "-clang++"
+ndk_sdk_home := env_var_or_default("ANDROID_HOME", env_var_or_default("ANDROID_SDK_ROOT", env_var("HOME") + "/Library/Android/sdk"))
+ndk_botan_build_home := env_var_or_default("OKP_ANDROID_NDK_HOME", ndk_sdk_home + "/ndk/" + ndk_version)
+ndk_host := if os() == "macos" { "darwin-x86_64" } else if os() == "linux" { "linux-x86_64" } else { error("Android release Rust build requires macOS or Linux") }
+ndk_bin := ndk_botan_build_home + "/toolchains/llvm/prebuilt/" + ndk_host + "/bin"
+ndk_ar := ndk_bin + "/llvm-ar"
+ndk_cxx := ndk_bin + "/" + ndk_cxx_ver
 
 
 # This uses only the udl file
