@@ -13,7 +13,7 @@ Install:
 - Rust (the `db-service-ffi/rust-toolchain.toml` pins **1.91.0**)
 - `cargo-ndk` **3.5.7**, `just` (1.40+)
 - Node.js (20.19.4+), Yarn Classic 1.22.x
-- JDK 17 or 21
+- **JDK 21** for the current ClojureScript/Closure Compiler
 - Android SDK, build tools, and side-by-side NDK versions **28.2.13676358** (Rust/Botan) and **27.1.12297006** (Gradle).
 
 Follow upstream `docs/BUILD.md` for the complete toolchain prerequisites. Also install **Gradle 9.3.1** if the Gradle wrapper JAR is missing. The current repository does not contain `android/gradle/wrapper/gradle-wrapper.jar`; its root `.gitignore` excludes `*.jar`. The build script uses the locally installed, version-checked Gradle 9.3.1 as a fallback.
