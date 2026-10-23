@@ -47,8 +47,8 @@ ios-sim-debug-lib-output := "target/aarch64-apple-ios-sim/debug/libdb_service_ff
 ios-device-debug-lib-output := "target/aarch64-apple-ios/debug/libdb_service_ffi.dylib"
 ios-device-release-lib-output := "target/aarch64-apple-ios/release/libdb_service_ffi.dylib"
 
-ios_sim_sdk_root := `xcrun --sdk iphonesimulator  --show-sdk-path`
-ios_sdk_root := `xcrun --sdk iphoneos --show-sdk-path`
+ios_sim_sdk_root := if os() == "macos" { `xcrun --sdk iphonesimulator --show-sdk-path` } else { "" }
+ios_sdk_root := if os() == "macos" { `xcrun --sdk iphoneos --show-sdk-path` } else { "" }
 ios_deployment_target := "15.1"
 
 # This uses only the udl file
