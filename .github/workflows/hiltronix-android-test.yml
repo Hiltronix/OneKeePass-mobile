@@ -1,0 +1,138 @@
+name: Hiltronix Android ARM64 test APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hiltronix-android-test.yml'
+      - 'scripts/build-android-foss.sh'
+      - 'android/**'
+      - 'db-service-ffi/**'
+      - 'uniffi-bindgen/**'
+      - 'src-cljs/**'
+      - 'foss-stubs/**'
+      - 'metro.config.js'
+      - 'react-native.config.js'
+      - 'package.json'
+      - 'yarn.lock'
+
+permissions:
+  contents: read
+
+jobs:
+  android-test-apk:
+    name: Build installable Android test APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      OKP_FOSS_BUILD: '1'
+      OKP_TEST_BUILD: '1'
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Check out Hiltronix Android source
+        uses: actions/checkout@v4
+
+      - name: Configure Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Install Yarn Classic
+        run: npm install --global yarn@1.22.22
+
+      - name: Configure Rust
+        shell: bash
+        run: |
+          rustup toolchain install 1.91.0 --profile minimal --target aarch64-linux-android
+          rustup default 1.91.0
+          rustc --version
+          cargo --version
+
+      - name: Configure native toolchain prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential clang cmake ninja-build pkg-config python3 libssl-dev
+
+      - name: Install Rust build helpers
+        run: |
+          cargo install just --version 1.40.0 --locked
+          cargo install cargo-ndk --version 3.5.7 --locked
+          just --version
+          cargo ndk --version
+
+      - name: Configure Android SDK tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install exact Android SDK and NDK versions
+        shell: bash
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;28.2.13676358" \
+            "ndk;27.1.12297006"
+          test -f "$ANDROID_HOME/ndk/28.2.13676358/source.properties"
+          test -f "$ANDROID_HOME/ndk/27.1.12297006/source.properties"
+
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Compile unsigned Android release APK
+        shell: bash
+        run: bash scripts/build-android-foss.sh
+
+      - name: Sign temporary test APK, verify and record hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          unsigned="android/app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk"
+          test -s "$unsigned"
+          mkdir -p dist
+
+          # This key is temporary, exists only on this Actions runner, and is
+          # NOT suitable for real secrets or repeatable Android app upgrades.
+          keytool -genkeypair -noprompt \
+            -storetype PKCS12 \
+            -keystore "$RUNNER_TEMP/hiltronix-test-only.p12" \
+            -storepass 'temporary-ci-test-only' \
+            -keypass 'temporary-ci-test-only' \
+            -alias hiltronix-test \
+            -keyalg RSA -keysize 3072 -validity 30 \
+            -dname 'CN=Hiltronix Disposable Test Key'
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -p -f 4 \
+            "$unsigned" "$RUNNER_TEMP/hiltronix-aligned.apk"
+          apk="dist/OneKeePass-Hiltronix-Android-arm64-TEST.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/hiltronix-test-only.p12" \
+            --ks-type PKCS12 \
+            --ks-key-alias hiltronix-test \
+            --ks-pass pass:temporary-ci-test-only \
+            --out "$apk" "$RUNNER_TEMP/hiltronix-aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify \
+            --verbose --print-certs "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" \
+            | grep -E "^package: name='com.onekeepassmobile.hiltronix'"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$apk" \
+            > dist/APK-PERMISSIONS.txt
+          sha256sum "$apk" > dist/SHA256SUMS.txt
+          cat dist/APK-PERMISSIONS.txt
+          cat dist/SHA256SUMS.txt
+
+      - name: Upload Android test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hiltronix-Android-arm64-TEST-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
