@@ -70,7 +70,7 @@ jobs:
           cargo ndk --version
 
       - name: Configure Android SDK tools
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install exact Android SDK and NDK versions
         shell: bash
