@@ -61,3 +61,18 @@ The current application ID is `com.onekeepassmobile`. Do **not** install this pr
 ## Later hardening work
 
 Removing the `INTERNET` permission and auditing indirect data-transfer paths, disabling unwanted network functionality and update paths, and setting up independent package identity and private signing are subsequent steps, not accomplished by this baseline build.
+
+## GitHub Actions: installable test APK
+
+The workflow [Hiltronix Android ARM64 test APK](../.github/workflows/hiltronix-android-test.yml) compiles the unsigned release output on a GitHub-hosted Linux runner, signs a **test-only** copy with a temporary CI key, verifies that signature and uploads the installable APK.
+
+To obtain the test build:
+
+1. Open the [Android Actions runs](https://github.com/Hiltronix/OneKeePass-mobile/actions/workflows/hiltronix-android-test.yml).
+2. Open a **successful** run (green checkmark). If there are none, inspect that run's build log; no APK exists until compilation and signing finish.
+3. Under **Artifacts**, download the \`Hiltronix-Android-arm64-TEST-...\` ZIP.
+4. Extract \`OneKeePass-Hiltronix-Android-arm64-TEST.apk\`, transfer it to your Android phone, and open it from the phone's Files app to sideload it. Approve the Android installation-from-this-source prompt if needed.
+
+This test variant uses application ID **\`com.onekeepassmobile.hiltronix\`**. It is intended to coexist with the official OneKeePass. It is **not** a verified offline build: the baseline main manifest still requests INTERNET and CAMERA. Use only a disposable KDBX database while testing.
+
+The test signing key is generated **afresh on every workflow run** and is discarded. You cannot install a different run's APK as an update over an earlier test build: uninstall the earlier Hiltronix test app first (its app-private data will be lost). The signing key is not uploaded. Do not use this mechanism for production signing.
