@@ -65,7 +65,7 @@ jobs:
       - name: Install Rust build helpers
         run: |
           cargo install just --version 1.40.0 --locked
-          cargo install cargo-ndk --version 3.5.7 --locked
+          cargo install --git https://github.com/bbqsrc/cargo-ndk.git --tag v3.5.7 cargo-ndk --locked
           just --version
           cargo ndk --version
 
