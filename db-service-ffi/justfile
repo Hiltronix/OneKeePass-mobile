@@ -260,7 +260,11 @@ build-android-lib-all release="":
 ## Call 'just bca' 
 ## "just bca true" for release; Instead call 'just bca-r' - See alias for 'build-android-lib-cp-src-release'
 build-android-lib-cp-src release="":(build-android-lib-all release) (generate-kotlin release)
-    cp -R {{kotlin-src-dir}}/ {{android-db-service-src-dir}}
+    # Copy contents, not the parent 'kotlin' directory. Otherwise Gradle
+    # compiles two copies of db_service.kt and reports redeclarations.
+    cp -R {{kotlin-src-dir}}/. {{android-db-service-src-dir}}/
+    # Remove a duplicate accidentally created by older builds, if present.
+    rm -f {{android-db-service-src-dir}}/kotlin/onekeepass/mobile/ffi/db_service.kt
     cp -R {{android-lib-output-dir}} {{android-db-service-lib-dir}}
 
 build-android-lib-cp-src-release:(build-android-lib-cp-src "true")
