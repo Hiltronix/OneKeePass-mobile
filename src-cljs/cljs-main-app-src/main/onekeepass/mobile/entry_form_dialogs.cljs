@@ -10,7 +10,7 @@
             [onekeepass.mobile.constants :as const]
             [onekeepass.mobile.events.dialogs :as dlg-events]
             [onekeepass.mobile.events.entry-form :as form-events]
-            [onekeepass.mobile.events.scan-otp-qr :as scan-qr-events]
+
             [onekeepass.mobile.rn-components
              :as rnc
              :refer [cust-dialog no-assist-text-props
@@ -41,42 +41,15 @@
               {:label "no"
                :on-press dlg-events/confirm-delete-otp-field-dialog-close}]}))
 
-;; Called to create a dialog and the dialog is shown if the 'show' is true in 
-;; the dialog data
-(defn setup-otp-action-dialog []
-  [confirm-dialog-with-lstr @(dlg-events/setup-otp-action-dialog-data)])
-
+;; External QR scanner links are received by otp-url-received.
+;; The in-app TOTP setup now goes straight to the manual entry dialog.
 (declare otp-settings-dialog-show)
 
-(defn scan-qr-action [{:keys [section-name field-name standard-field] :as otp-field-m}]
-  (if standard-field
-    (scan-qr-events/initiate-scan-qr otp-field-m)
-    (otp-settings-dialog-show section-name field-name standard-field :scan-qr)))
-
-;; Called to show the dialog created in setup-otp-action-dialog fn above
 (defn setup-otp-action-dialog-show [section-name field-name standard-field]
-  ;; We pass translation keys for title, confirm-text and for button labels
-  (dlg-events/setup-otp-action-dialog-show-with-state
-   {:title "setupOtp"
-    :confirm-text "setupOtp"
-    :section-name section-name
-    :show-action-as-vertical true
-    :actions [{:label "scanQRcode"
-               :disabled (bg/is-rn-native-camera-vison-disabled)
-               :on-press (fn []
-                           (scan-qr-action (as-map [section-name field-name standard-field]))
-                           (dlg-events/setup-otp-action-dialog-close))}
-              {:label "enterManually"
-               :on-press (fn []
-                           (otp-settings-dialog-show section-name field-name standard-field :manual)
-                           (dlg-events/setup-otp-action-dialog-close))}
-              {:label "cancel"
-               :on-press dlg-events/setup-otp-action-dialog-close}]}))
+  (otp-settings-dialog-show section-name field-name standard-field :manual))
 
 (defn otp-settings-dialog
-  "Shown when user wants to enter secrect code or scan QR
-   In case of 'Scan QR' option, this dialog is shown only for the user to enter field-name when user
-   wants to add additional otp field
+  "Enter a TOTP secret or a complete otpauth:// URI manually.
   "
   [{:keys [dialog-show
            standard-field
@@ -91,9 +64,7 @@
     [cust-dialog {:style {} :dismissable true :visible dialog-show :onDismiss #()}
 
      [rnp-dialog-title {:ellipsizeMode "tail" :numberOfLines 1}
-      (if (=  code-entry-type :scan-qr)
-        (lstr-l "scanQRcode")
-        (lstr-l "enterCode"))]
+      (lstr-l "enterCode")]
 
      [rnp-dialog-content
       [rn-view {:flexDirection "column"}
@@ -128,8 +99,8 @@
 (defn otp-settings-dialog-show
   "Called to show the otp settings dialog with initial values
    This dialog is shown when user wants to enter the code manually. 
-   This is also called before scanning code if the otp is an additional custom field 
-   code-entry-type is one of :scan-qr or :manual
+   External QR import uses a separate otpauth:// intent receiver 
+   code-entry-type is :manual
    "
   [section-name field-name standard-field code-entry-type]
   (dlg-events/otp-settings-dialog-show-with-state (as-map [section-name field-name standard-field code-entry-type])))
