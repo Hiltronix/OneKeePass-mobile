@@ -23,13 +23,9 @@
    [onekeepass.mobile.events.crash-info :as crash-info-events]
    [onekeepass.mobile.events.app-settings :as as-events :refer [app-theme]]
    [onekeepass.mobile.events.common :as cmn-events]
-   [onekeepass.mobile.events.external-db-change]
    [onekeepass.mobile.events.native-events :as native-events]
-   [onekeepass.mobile.events.remote-storage :as rs-events]
    [onekeepass.mobile.events.save :as save-events]
    [onekeepass.mobile.js-error :as js-error]
-   [onekeepass.mobile.external-db-change :as external-db-change]
-   [onekeepass.mobile.remote-connection-unavailable :as remote-connection-unavailable]
    [onekeepass.mobile.merging :refer [merge-result-dialog-mounted]]
    [onekeepass.mobile.otp-url-received :refer [otp-url-dialogs-mounted]]
    [onekeepass.mobile.rn-components :as rnc :refer [react-use-effect
@@ -59,8 +55,6 @@
       [message-modal @(cmn-events/message-modal-data)]
       [message-dialog @(cmn-events/message-dialog-data)]
       [merge-result-dialog-mounted]
-      [external-db-change/external-db-change-dialog-mounted]
-      [remote-connection-unavailable/remote-connection-unavailable-dialog-mounted]
       [otp-url-dialogs-mounted]
       [crash-info-dialog-mounted]
       (when (bg/is-iOS)
@@ -142,7 +136,6 @@
   (cmn-events/sync-initialize)
   (as-events/init-session-timeout-tick)
   (t/load-language-translation)
-  (rs-events/load-all-remote-connection-configs)
   (crash-info-events/load-recorded-crashes)
   (when (bg/is-iOS)
     (pp-events/check-all)))
