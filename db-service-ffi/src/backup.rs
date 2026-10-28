@@ -243,7 +243,11 @@ fn list_of_files_with_modified_times<P: AsRef<Path>>(file_hist_root: P) -> Vec<(
     if let Ok(entries) = fs::read_dir(file_hist_root) {
         for entry in entries {
             if let Ok(e) = entry {
-                if e.path().is_file() {
+                // A .partial snapshot can remain after a process crash. Never
+                // offer unfinished data as the latest recoverable database.
+                if e.path().is_file()
+                    && e.path().extension().and_then(|ext| ext.to_str()) == Some("kdbx")
+                {
                     if let Some(t) = e
                         .metadata()
                         .iter()
