@@ -107,7 +107,8 @@
 
      (= category-key TYPE_SECTION_TITLE)
      [rnp-menu-item {:title (lstr-ml "addEntry")
-                     :disabled @(cmn-events/current-db-disable-edit)
+                     :disabled (or @(cmn-events/current-db-disable-edit)
+                                    (contains? const/REMOTE_CONNECTION_TYPE_UUIDS (:entry-type-uuid category-detail)))
                      :onPress (category-long-press-menu-action
                                ecat-events/add-new-entry nil (:entry-type-uuid category-detail))}]
 
