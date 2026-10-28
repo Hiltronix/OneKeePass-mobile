@@ -324,7 +324,13 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
         _ => return_api_response_failure!("Unsupported file args passed"),
     };
 
-    let backup_file = open_backup_file(backup_file_name.as_ref());
+    // Keep unfinished Android backup files out of visible recovery history.
+    #[cfg(target_os = "android")]
+    let open_backup_name = backup_file_name.as_ref().map(|name| format!("{name}.partial"));
+    #[cfg(not(target_os = "android"))]
+    let open_backup_name = backup_file_name.clone();
+
+    let backup_file = open_backup_file(open_backup_name.as_ref());
     let kdbx_saved = match backup_file {
         Some(mut bf_writer) => {
             match db_service::save_kdbx_to_writer(&mut bf_writer, &db_key) {
@@ -333,11 +339,23 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                     log::debug!("Syncing and rewinding of backup file result {:?}", rewind_r);
                     if let Err(e) = rewind_r {
                         drop(bf_writer);
-                        if let Some(path) = backup_file_name.as_deref() {
+                        if let Some(path) = open_backup_name.as_deref() {
                             backup::remove_backup_history_file(&db_key, path);
                         }
                         return_api_response_failure!(e)
                     }
+
+                    #[cfg(target_os = "android")]
+                    if let (Some(temp_path), Some(final_path)) =
+                        (open_backup_name.as_deref(), backup_file_name.as_deref())
+                    {
+                        if let Err(e) = fs::rename(temp_path, final_path) {
+                            drop(bf_writer);
+                            let _ = fs::remove_file(temp_path);
+                            return_api_response_failure!(e)
+                        }
+                    }
+
                     // Call verify checksum here using writer "db_service::verify_db_file_checksum"
                     // Only for iOS.
 
@@ -377,6 +395,9 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                     if let Err(e) =
                         db_service::calculate_and_set_db_file_checksum(&db_key, &mut bf_writer)
                     {
+                        if let Some(path) = backup_file_name.as_deref() {
+                            AppState::add_last_backup_name_on_error(&db_key, path);
+                        }
                         return_api_response_failure!(e)
                     }
                     log::debug!("New hash for checksum is done and set");
@@ -392,7 +413,7 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                 }
                 Err(e) => {
                     drop(bf_writer);
-                    if let Some(path) = backup_file_name.as_deref() {
+                    if let Some(path) = open_backup_name.as_deref() {
                         backup::remove_backup_history_file(&db_key, path);
                     }
                     return_api_response_failure!(e)
@@ -444,8 +465,8 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
     }
 }
 
-// Android opens the db file for writing (and truncates it) before calling save_kdbx and so it
-// calls this first. A Failure carries the error json that is passed on to the UI as it is
+// Android checks write permission before attempting a recoverable, non-truncating save.
+// A Failure carries the error json that is passed on to the UI as it is
 // See saveKdbx in DbServiceModule.kt
 pub(crate) fn ensure_db_writable(full_file_name_uri: String) -> ApiResponse {
     as_api_response(crate::db_backup_read::ensure_db_writable(&full_file_name_uri))
@@ -477,14 +498,25 @@ pub(crate) fn write_to_backup_on_error(full_file_name_uri: String) -> ApiRespons
             "Writing to the backup file {:?} for the uri {}",
             &backup_file_name, &file_name
         );
-        let mut backup_file = open_backup_file(backup_file_name.as_ref())
+        #[cfg(target_os = "android")]
+        let open_backup_name = backup_file_name.as_ref().map(|name| format!("{name}.partial"));
+        #[cfg(not(target_os = "android"))]
+        let open_backup_name = backup_file_name.clone();
+
+        let mut backup_file = open_backup_file(open_backup_name.as_ref())
             .ok_or(OkpError::DataError("Backup file could not be created"))?;
 
-        // A backup cannot be considered recoverable until serialization and
-        // fsync both succeed. Never retain a partially written backup as latest.
+        // A snapshot is published to recovery history only after successful
+        // serialization and fsync. Renaming is atomic within app-private storage.
         let result = db_service::save_kdbx_to_writer(&mut backup_file, &full_file_name_uri)
             .and_then(|saved| {
                 backup_file.sync_all()?;
+                #[cfg(target_os = "android")]
+                if let (Some(temp_path), Some(final_path)) =
+                    (open_backup_name.as_deref(), backup_file_name.as_deref())
+                {
+                    fs::rename(temp_path, final_path)?;
+                }
                 Ok(saved)
             });
         drop(backup_file);
@@ -492,8 +524,8 @@ pub(crate) fn write_to_backup_on_error(full_file_name_uri: String) -> ApiRespons
         if let Some(bkp_file_name) = backup_file_name.as_deref() {
             if result.is_ok() {
                 AppState::add_last_backup_name_on_error(&full_file_name_uri, bkp_file_name);
-            } else {
-                backup::remove_backup_history_file(&full_file_name_uri, bkp_file_name);
+            } else if let Some(temp_path) = open_backup_name.as_deref() {
+                backup::remove_backup_history_file(&full_file_name_uri, temp_path);
             }
         }
 
