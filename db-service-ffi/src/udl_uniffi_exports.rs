@@ -155,8 +155,7 @@ static API_CALLBACK_STORE: OnceCell<ApiCallbacksStore> = OnceCell::new();
 //     }
 
 //     // This service uses 'secure_enclave_cb_service'
-//     #[cfg(target_os = "ios")]
-    secure_store::init_rs_connection_configs_store();
+//     secure_store::init_rs_connection_configs_store();
 //     log::info!("secure_store::init_rs_connection_configs_store call done after callback setup in initialize_callback_services");
 
 //     debug!("initialize_callback_services call is finished");
@@ -190,7 +189,8 @@ pub(crate) fn db_service_initialize(
     event_dispatcher::init_async_listeners();
     log::info!("event_dispatcher::init_async_listeners call completed");
 
-    // This service uses 'secure_enclave_cb_service'
+    // The legacy remote-connection secrets store is not present on Android.
+    #[cfg(target_os = "ios")]
     secure_store::init_rs_connection_configs_store();
     log::info!("secure_store::init_rs_connection_configs_store call done after callback setup in initialize_callback_services");
 
