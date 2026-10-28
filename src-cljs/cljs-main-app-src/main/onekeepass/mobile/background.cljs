@@ -12,8 +12,8 @@
                                                            call-api-async
                                                            invoke-api
                                                            ios-autofill-invoke-api
-                                                           is-rs-type]]
-   [onekeepass.mobile.background-remote-server :as bg-rs]
+ ]]
+
    [onekeepass.mobile.utils :as u :refer [contains-val?]]
    [react-native :as rn]))
 
@@ -379,20 +379,11 @@
                   dispatch-fn :error-transform true))
 
 (defn create-kdbx
-  "Called with full file name uri that was picked by the user through the document picker 
-   and new db related info in a map
-   Used only in case of Android. See comments in pick-document-to-create and pick-and-save-new-kdbxFile
-   "
+  "Create a KDBX database through the device's local document provider."
   [full-file-name new-db dispatch-fn]
-  (if-not (is-rs-type full-file-name)
-    (call-api-async (fn []
-                      (.createKdbx
-                       okp-db-service
-                       full-file-name
-                       (api-args->json {:new-db new-db})))
-                    dispatch-fn :error-transform true)
-
-    (bg-rs/create-kdbx new-db dispatch-fn)))
+  (call-api-async (fn [] (.createKdbx okp-db-service full-file-name
+                                      (api-args->json {:new-db new-db})))
+                  dispatch-fn :error-transform true))
 
 ;; Used to get any uri that may be avaiable to open when user starts our app by pressing 
 ;; a db file with extension .kdbx. 
@@ -423,19 +414,15 @@
    (load-kdbx db-file-name password key-file-name biometric-auth-used false dispatch-fn))
 
   ([db-file-name password key-file-name biometric-auth-used transient-db-ref dispatch-fn]
-   (if-not (is-rs-type db-file-name)
-     (call-api-async (fn []
-                       (.readKdbx okp-db-service
-                                  db-file-name
-                                  (api-args->json {:db-file-name db-file-name
-                                                   :password password
-                                                   :key-file-name key-file-name
-                                                   :biometric-auth-used biometric-auth-used
-                                                   :transient-db-ref (boolean transient-db-ref)}
-                                                  :convert-request true)))
-                     dispatch-fn :error-transform true)
-     (bg-rs/read-kdbx db-file-name password key-file-name biometric-auth-used dispatch-fn))))
-
+   (call-api-async (fn []
+                     (.readKdbx okp-db-service db-file-name
+                                (api-args->json {:db-file-name db-file-name
+                                                 :password password
+                                                 :key-file-name key-file-name
+                                                 :biometric-auth-used biometric-auth-used
+                                                 :transient-db-ref (boolean transient-db-ref)}
+                                                :convert-request true)))
+                   dispatch-fn :error-transform true)))
 
 (defn set-db-read-only
   "Saves the Read Only setting of a db. A loaded db becomes read only or editable right away unless
@@ -450,10 +437,8 @@
                                     :biometric-auth-used biometric-auth-used} dispatch-fn))
 
 (defn save-kdbx [full-file-name overwrite dispatch-fn]
-  (if-not (is-rs-type full-file-name)
-    ;; By default, we pass 'false' for the overwrite arg
-    (call-api-async (fn [] (.saveKdbx okp-db-service full-file-name overwrite)) dispatch-fn :error-transform true)
-    (bg-rs/save-kdbx full-file-name overwrite dispatch-fn)))
+  (call-api-async (fn [] (.saveKdbx okp-db-service full-file-name overwrite))
+                  dispatch-fn :error-transform true))
 
 (defn kdbx-save-pending
   "Returns a boolean indicating whether the in-memory db has unsaved edits.
