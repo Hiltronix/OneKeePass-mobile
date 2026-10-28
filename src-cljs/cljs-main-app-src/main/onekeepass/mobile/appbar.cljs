@@ -13,7 +13,6 @@
                                                   APP_SETTINGS_PAGE_ID
                                                   AUTOFILL_SETTINGS_PAGE_ID
                                                   BLANK_PAGE_ID
-                                                  CAMERA_SCANNER_PAGE_ID
                                                   ENTRY_CATEGORY_PAGE_ID
                                                   ENTRY_FORM_PAGE_ID
                                                   ENTRY_HISTORY_LIST_PAGE_ID
@@ -69,7 +68,6 @@
                                                              rnp-menu-item
                                                              rnp-text
                                                              rnp-touchable-ripple]]
-            [onekeepass.mobile.scan-otp-qr :as scan-otp-qr]
             [onekeepass.mobile.search :as search]
             [onekeepass.mobile.settings :as settings :refer [db-settings-form-content]]
             [onekeepass.mobile.start-page :refer [open-page-content]]
@@ -115,7 +113,6 @@
      (= page APP_SETTINGS_PAGE_ID)
      (= page AUTOFILL_SETTINGS_PAGE_ID)
      (= page KEY_FILE_FORM_PAGE_ID)
-     (= page CAMERA_SCANNER_PAGE_ID)
      (= page ABOUT_PAGE_ID)
      (= page PRIVACY_POLICY_PAGE_ID)
      (= page ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID)
@@ -353,7 +350,6 @@
                            APP_SETTINGS_PAGE_ID
                            AUTOFILL_SETTINGS_PAGE_ID
                            KEY_FILE_FORM_PAGE_ID
-                           CAMERA_SCANNER_PAGE_ID
                            ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID
                            APP_LOCK_SETTINGS_PAGE_ID
                            MANAGE_CUSTOM_ICONS_PAGE_ID
@@ -425,7 +421,6 @@
 ;; All pages that has back action using default "<" button
 (def back-button-pages [ABOUT_PAGE_ID
                         PRIVACY_POLICY_PAGE_ID
-                        CAMERA_SCANNER_PAGE_ID
                         ENTRY_HISTORY_LIST_PAGE_ID
                         ICONS_LIST_PAGE_ID
                         SEARCH_PAGE_ID
@@ -434,7 +429,6 @@
                         AUTOFILL_SETTINGS_PAGE_ID
                         ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID
                         APP_LOCK_SETTINGS_PAGE_ID
-                        CAMERA_SCANNER_PAGE_ID
                         MANAGE_CUSTOM_ICONS_PAGE_ID
                         KEY_FILE_FORM_PAGE_ID
                         MERGE_DATABASE_PAGE_ID])
@@ -543,9 +537,6 @@
     (= page PRIVACY_POLICY_PAGE_ID)
     [privacy-policy-content]
 
-    (= page CAMERA_SCANNER_PAGE_ID)
-    (scan-otp-qr/content)
-
     (= page ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID)
     [app-db-settings/content]
 
@@ -563,8 +554,6 @@
     (= page BLANK_PAGE_ID)
     (app-settings/language-update-feedback)
 
-    ;; (= page CAMERA_SCANNER_PAGE_ID)
-    ;; [totp/content]
     ))
 
 (defn appbar-main-content
