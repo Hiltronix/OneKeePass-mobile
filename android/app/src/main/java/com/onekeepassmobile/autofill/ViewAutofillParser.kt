@@ -190,7 +190,7 @@ object ViewAutofillParser {
         var parseResult: ParseResult = ParseResult()
         windowNodes.forEach { windowNode: AssistStructure.WindowNode ->
             val applicationId = windowNode.title.toString().split("/")[0]
-            Log.d(TAG, "Autofill applicationId: $applicationId")
+
             parseResult.applicationId = applicationId
             val viewNode: AssistStructure.ViewNode? = windowNode.rootViewNode
             traverseNode(viewNode, parseResult)
