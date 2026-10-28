@@ -614,8 +614,7 @@ impl Commands {
                 // config resolved from a kdbx connection entry does not linger
                 // after the remote db that needed it is closed
                 #[cfg(target_os = "ios")]
-                #[cfg(target_os = "ios")]
-        remote_storage::clear_cached_connection_config(&db_key);
+                remote_storage::clear_cached_connection_config(&db_key);
                 AppState::set_db_read_only(&db_key, None);
                 let r = InvokeResult::from(db_service::close_kdbx(&db_key)).json_str();
                 #[cfg(target_os = "android")]
@@ -1314,6 +1313,7 @@ impl Commands {
         // Remove all files that were created for this db
         remove_app_files(&db_key);
 
+        #[cfg(target_os = "ios")]
         remote_storage::clear_cached_connection_config(&db_key);
         AppState::set_db_read_only(&db_key, None);
 
