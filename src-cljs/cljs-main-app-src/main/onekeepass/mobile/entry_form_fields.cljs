@@ -11,7 +11,7 @@
             [onekeepass.mobile.events.common :as cmn-events]
             [onekeepass.mobile.events.entry-form :as form-events]
             [onekeepass.mobile.events.password-generator :as pg-events]
-            [onekeepass.mobile.events.remote-storage :as rs-events]
+
             [onekeepass.mobile.otp-badge :refer [formatted-token]]
             [onekeepass.mobile.rn-components
              :as rnc :refer [animated-circular-progress dots-icon-name
@@ -461,18 +461,7 @@
     :as kvm}]
   (let [cust-color (if edit @page-background-color (read-field-background))
         is-password-edit? (and edit (= key PASSWORD))
-        entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
-        entry-uuid @(form-events/entry-form-uuid)
-        ;; Read-mode launch of the remote Storage Browser from the connection
-        ;; field of an SFTP/WebDAV connection entry: Host for SFTP, URL for WebDAV.
-        rs-conn-launch? (and (not edit)
-                             (or (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP)
-                                      (= key const/HOST))
-                                 (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV)
-                                      (= key URL))))
-        ;; kdbx:// or https:// or http. For a WebDAV connection entry the URL
-        ;; field shows the storage-launch icon instead of the open-url icon.
-        non-edit-kdbx-url (and (not edit) (= key URL) (not rs-conn-launch?))
+        non-edit-kdbx-url (and (not edit) (= key URL))
         custom-field-edit-focused? (if (is-iOS)
                                      (and
                                       edit
@@ -543,13 +532,7 @@
                            :onPress (fn []
                                       (ef-ao/entry-form-open-url value))}]])
 
-      ;; Launch the remote Storage Browser using this connection entry
-      (when rs-conn-launch?
-        [rn-view {:style {:margin-left -5 :backgroundColor cust-color :position "absolute" :right 0}}
-         [rnp-icon-button {:style {:margin-right 0}
-                           :icon const/ICON-LAUNCH
-                           :onPress (fn []
-                                      (rs-events/open-entry-remote entry-type-uuid entry-uuid))}]])]
+      ]
 
      ;; Any error text below the field, otherwise the field's helper text (e.g. CVC, Additional URLs)
      (cond
