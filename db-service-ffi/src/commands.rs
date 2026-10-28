@@ -1005,9 +1005,7 @@ impl Commands {
     fn get_custom_icon_data(args: &str) -> ResponseJson {
         let inner = || -> OkpResult<CustomIconDataResponse> {
             let CommandArg::DbKeyWithUUIDArg { db_key, uuid } = serde_json::from_str(args)? else {
-                return Err(OkpError::UnexpectedError(format!(
-                    "Invalid arguments for get_custom_icon_data"
-                )));
+                return Err(OkpError::UnexpectedError("Invalid arguments for get_custom_icon_data".into()));
             };
             let data = db_service::get_custom_icon(&db_key, &uuid.to_string())?;
             Ok(data.into())
@@ -1019,9 +1017,7 @@ impl Commands {
         let inner = || -> OkpResult<CustomIconSummary> {
             let CommandArg::CustomIconAddUrlArg { db_key, url } = serde_json::from_str(args)?
             else {
-                return Err(OkpError::UnexpectedError(format!(
-                    "Invalid arguments for add_custom_icon_from_url"
-                )));
+                return Err(OkpError::UnexpectedError("Invalid arguments for add_custom_icon_from_url".into()));
             };
             // Reuse the core's tokio runtime to drive the async favicon download
             // (avoids spinning up another runtime per call).
@@ -1054,10 +1050,7 @@ impl Commands {
             // log::debug!("FileInfo is {:?}", info);
             ok_json_str(info)
         } else {
-            error_json_str(&format!(
-                "Unexpected args passed in getting file info {}",
-                args
-            ))
+            error_json_str("Invalid arguments for get_file_info")
         }
     }
 
@@ -1256,9 +1249,7 @@ impl Commands {
                 }
             }
         } else {
-            error_json_str(&format!(
-                "Invalid arguments for prepare_export_kdbx_data"
-            ))
+            error_json_str("Invalid arguments for prepare_export_kdbx_data")
         }
     }
 
