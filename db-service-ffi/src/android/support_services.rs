@@ -338,7 +338,7 @@ impl AndroidSupportServiceExtra {
             let identifiers =
                 AndroidApiCallbackImpl::api_service().autofill_client_app_url_info()?;
 
-            log::debug!("AndroidApiCallbackImpl - Autofill client identifiers {:?}",&identifiers);
+
 
             // Build the login URL to match against. Browsers pass a web "uri";
             // if it lacks a scheme (a bare domain) we assume https so the shared
@@ -353,7 +353,7 @@ impl AndroidSupportServiceExtra {
                 String::default()
             };
 
-            debug!("The autofill input url to match is {}", &input_url);
+
             // Only Login entries whose URL (or Additional URLs) matches are offered
             // (consistent with the desktop browser extension).
             let entry_items =
