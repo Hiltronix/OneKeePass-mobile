@@ -56,7 +56,7 @@ class AuthenticatedAutofillService : AutofillService() {
         }
 
         val resp = OkpFillResponseBuilder.build(this.applicationContext,parsedAutofillRequest)
-        Log.d(TAG, "Returning the build response $resp")
+
         callback.onSuccess(resp)
     }
 
@@ -180,7 +180,7 @@ class AuthenticatedAutofillService : AutofillService() {
 
         Log.d(TAG, "intentSender is built")
 
-        Log.d(TAG, "Preparing autofillIds ${autofillIds} and $autofillIds.toTypedArray()")
+
         // Build a FillResponse object that requires authentication
         val fillResponse: FillResponse = FillResponse.Builder()
                 .setAuthentication(autofillIds.toTypedArray(), intentSender, authPresentation)
