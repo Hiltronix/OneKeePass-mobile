@@ -14,7 +14,7 @@
             [onekeepass.mobile.events.entry-list :as elist-events :refer [find-entry-by-id]]
             [onekeepass.mobile.events.entry-list-otp :as otp-events]
             [onekeepass.mobile.events.move-delete :as md-events]
-            [onekeepass.mobile.events.remote-storage :as rs-events]
+
             [onekeepass.mobile.events.search :as search-events]
             [onekeepass.mobile.grouped-list :as gl]
             [onekeepass.mobile.icons-list :refer [ENTRY-GROUP-LIST-ICON-SIZE
@@ -112,14 +112,6 @@
        [rnp-menu-item {:title (lstr-ml "delete")
                        :disabled @(cmn-events/current-db-disable-edit)
                        :onPress (entry-long-press-menu-action cc/show-entry-delete-confirm-dialog uuid)}]
-
-       ;; Launch the remote Storage Browser using this connection entry
-       (when (cmn-events/remote-connection-entry-type? entry-type-uuid)
-         [rnp-menu-item {:title (lstr-ml "openRemote")
-                         :onPress (entry-long-press-menu-action
-                                   rs-events/open-entry-remote entry-type-uuid uuid)}])
-
-
 
        ;; TDOO: 
        ;; Need to add backend api support to get history count as part of summary
