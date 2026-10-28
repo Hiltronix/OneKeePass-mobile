@@ -26,7 +26,7 @@ class ApiCallbackServiceImpl():AndroidApiService,CommonDeviceServiceEx {
     }
 
     override fun clipboardCopyString(clipData: AppClipboardCopyData) {
-        Log.d(TAG,"clipboardCopyString is called with $clipData and called OkpClipboardManager.setText")
+
         OkpClipboardManager.setText(clipData )
     }
 
@@ -41,7 +41,7 @@ class ApiCallbackServiceImpl():AndroidApiService,CommonDeviceServiceEx {
                 "totp_only" to OkpFillResponseBuilder.isTotpOnlyRequest().toString())
 
         return if (uri != null) {
-            Log.d(TAG,"Returning the AF uri $uri to rust side")
+
             mapOf("uri" to uri!!) + totpInfo
         } else {
             Log.d(TAG,"Returning the empty AF uri map to rust side")
@@ -53,7 +53,7 @@ class ApiCallbackServiceImpl():AndroidApiService,CommonDeviceServiceEx {
     override fun completeAutofill(autoFillData: AutoFillDbData) {
         when (autoFillData) {
             is AutoFillDbData.Login -> { OkpFillResponseBuilder.completeLoginAutofill(autoFillData.username,autoFillData.password,autoFillData.otp ) }
-            else -> {Log.d(TAG,"Invalid autoFillData $autoFillData")}
+            else -> { Log.w(TAG, "Unsupported Autofill callback payload type") }
         }
     }
 
