@@ -35,7 +35,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn save-error-modal [{:keys [dialog-show file-name error-type error-message merge-save-called remote-db?]}]
+(defn save-error-modal [{:keys [dialog-show file-name error-type error-message merge-save-called]}]
   [rnp-modal {:style {:margin-right 25
                       :margin-left 25}
               :visible dialog-show
@@ -74,8 +74,6 @@
 
      [rnp-divider]
      [rn-view {:style {:flex 00.70}}
-      (when (and (= error-type :content-change-detected) remote-db?)
-        [:<>
          [rn-view {:style {:margin-top 10 :margin-bottom 10 :align-items "center"}}
           [rnp-button {:style {:width "50%"}
                        :labelStyle {:fontWeight "bold"}
