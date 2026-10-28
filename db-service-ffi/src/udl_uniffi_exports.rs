@@ -13,7 +13,6 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     app_state::AppState,
-    remote_storage,
     commands::{self, CommandArg, ResponseJson},
     event_dispatcher,
     file_util::KeyFileInfo,
@@ -24,8 +23,10 @@ use crate::{
     OkpError, OkpResult,
 };
 
-use crate::remote_storage::secure_store;
+#[cfg(target_os = "ios")]
+use crate::remote_storage::{self, secure_store};
 
+#[cfg(target_os = "ios")]
 use crate::file_util::HandlePickedFile;
 
 /////////// All common uniffi exported types  ///////////
@@ -154,7 +155,8 @@ static API_CALLBACK_STORE: OnceCell<ApiCallbacksStore> = OnceCell::new();
 //     }
 
 //     // This service uses 'secure_enclave_cb_service'
-//     secure_store::init_rs_connection_configs_store();
+//     #[cfg(target_os = "ios")]
+    secure_store::init_rs_connection_configs_store();
 //     log::info!("secure_store::init_rs_connection_configs_store call done after callback setup in initialize_callback_services");
 
 //     debug!("initialize_callback_services call is finished");
@@ -192,11 +194,13 @@ pub(crate) fn db_service_initialize(
     secure_store::init_rs_connection_configs_store();
     log::info!("secure_store::init_rs_connection_configs_store call done after callback setup in initialize_callback_services");
 
+    #[cfg(target_os = "ios")]
     remote_storage::callback_service_provider::init_callback_service_provider();
     log::info!("remote_storage callback_service_provider::init_callback_service_provider call completed");
 }
 
 // Called from Swift or Kotlin
+#[cfg(target_os = "ios")]
 #[uniffi::export]
 pub(crate) fn handle_picked_file(file_args: FileArgs, json_args: &str) -> ResponseJson {
     let inner_fn = || -> OkpResult<KeyFileInfo> {
@@ -209,4 +213,13 @@ pub(crate) fn handle_picked_file(file_args: FileArgs, json_args: &str) -> Respon
         picked_file_handler.execute(&file_args)
     };
     commands::result_json_str(inner_fn())
+}
+
+
+// The Android build does not expose remote private-key pickers.
+// Preserve the UniFFI symbol to maintain the existing Kotlin ABI.
+#[cfg(target_os = "android")]
+#[uniffi::export]
+pub(crate) fn handle_picked_file(_file_args: FileArgs, _json_args: &str) -> ResponseJson {
+    commands::error_json_str("Remote file handlers are not available in the offline Android build")
 }
