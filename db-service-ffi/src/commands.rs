@@ -1,7 +1,9 @@
 use crate::app_preference::PreferenceData;
 use crate::app_state::AppState;
 use crate::auto_open::AutoOpenProperties;
+#[cfg(target_os = "ios")]
 use crate::file_util::PickedFileHandler;
+#[cfg(target_os = "ios")]
 use crate::remote_storage::{self, RemoteStorageOperation};
 use crate::{android, file_util::KeyFileInfo, ios};
 use crate::{app_lock, backup, biometric_auth, util, OkpError, OkpResult};
@@ -260,6 +262,7 @@ pub enum CommandArg {
         language_ids: Vec<String>,
     },
 
+    #[cfg(target_os = "ios")]
     RemoteServerOperationArg {
         rs_operation_type: remote_storage::RemoteStorageOperationType,
     },
@@ -267,6 +270,7 @@ pub enum CommandArg {
     // Fetch a single connection config by id; resolves from the kdbx-entry
     // source first, then falls back to the legacy blob store. Used by the
     // read-only View action on db-entry rows.
+    #[cfg(target_os = "ios")]
     RemoteStorageConfigLookupArg {
         rs_storage_type: remote_storage::RemoteStorageType,
         connection_id: String,
@@ -274,10 +278,12 @@ pub enum CommandArg {
 
     // Slim variant for callers that only need to indicate the storage flavour
     // (no live connection object). Used by rs_list_kdbx_source_connections.
+    #[cfg(target_os = "ios")]
     RemoteStorageTypeArg {
         rs_storage_type: remote_storage::RemoteStorageType,
     },
 
+    #[cfg(target_os = "ios")]
     PickedFileHandlerArg {
         picked_file_handler: PickedFileHandler,
     },
@@ -362,6 +368,7 @@ pub enum CommandArg {
 
     // Custom icon — add from a remote URL (favicon download).
     // Unique required field 'url' so this never collides with other variants.
+    #[cfg(target_os = "ios")]
     CustomIconAddUrlArg {
         db_key: String,
         url: String,
@@ -606,7 +613,9 @@ impl Commands {
                 // Drop any session cached connection config for this db so the
                 // config resolved from a kdbx connection entry does not linger
                 // after the remote db that needed it is closed
-                remote_storage::clear_cached_connection_config(&db_key);
+                #[cfg(target_os = "ios")]
+                #[cfg(target_os = "ios")]
+        remote_storage::clear_cached_connection_config(&db_key);
                 AppState::set_db_read_only(&db_key, None);
                 let r = InvokeResult::from(db_service::close_kdbx(&db_key)).json_str();
                 #[cfg(target_os = "android")]
@@ -766,6 +775,7 @@ impl Commands {
 
             "get_custom_icon_data" => Self::get_custom_icon_data(&args),
 
+            #[cfg(target_os = "ios")]
             "add_custom_icon_from_url" => Self::add_custom_icon_from_url(&args),
 
             "remove_custom_icon" => {
@@ -900,11 +910,14 @@ impl Commands {
             "app_reset" => result_json_str(app_lock::app_reset()),
 
             //// All remote storage related
+            #[cfg(target_os = "ios")]
             "rs_connect_and_retrieve_root_dir" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
                     result_json_str(rs_operation_type.connect_and_retrieve_root_dir())
                 })
             }
+
+            #[cfg(target_os = "ios")]
 
             "rs_connect_by_id_and_retrieve_root_dir" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
@@ -912,11 +925,15 @@ impl Commands {
                 })
             }
 
+            #[cfg(target_os = "ios")]
+
             "rs_connect_by_id" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
                     result_json_str(rs_operation_type.connect_by_id())
                 })
             }
+
+            #[cfg(target_os = "ios")]
 
             "rs_remote_storage_configs" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
@@ -924,11 +941,15 @@ impl Commands {
                 })
             }
 
+            #[cfg(target_os = "ios")]
+
             "rs_list_sub_dir" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
                     result_json_str(rs_operation_type.list_sub_dir())
                 })
             }
+
+            #[cfg(target_os = "ios")]
 
             "rs_list_dir" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
@@ -936,28 +957,42 @@ impl Commands {
                 })
             }
 
+            #[cfg(target_os = "ios")]
+
             "rs_read_kdbx" => crate::remote_storage::rs_read_kdbx(&args),
+
+            #[cfg(target_os = "ios")]
 
             "rs_save_kdbx" => crate::remote_storage::rs_save_kdbx(&args),
 
+            #[cfg(target_os = "ios")]
+
             "rs_create_kdbx" => crate::remote_storage::rs_create_kdbx(&args),
 
+            #[cfg(target_os = "ios")]
+
             "rs_save_as_kdbx" => crate::remote_storage::rs_save_as_kdbx(&args),
+
+            #[cfg(target_os = "ios")]
 
             "rs_read_configs" => result_json_str(remote_storage::read_configs()),
 
             // Lists every REMOTE_CONNECTION_SFTP / _WEBDAV entry across all
             // currently open kdbx databases. The picker uses this to merge
             // kdbx-source connections with the legacy blob source.
+            #[cfg(target_os = "ios")]
             "rs_list_kdbx_source_connections" => {
                 crate::remote_storage::rs_list_kdbx_source_connections(&args)
             }
 
             // Read-only fetch of one connection config (kdbx-entry or blob).
             // Powers the View action on the connection picker.
+            #[cfg(target_os = "ios")]
             "rs_get_remote_storage_config" => {
                 crate::remote_storage::rs_get_remote_storage_config(&args)
             }
+
+            #[cfg(target_os = "ios")]
 
             "rs_delete_config" => {
                 service_call_closure!(args,RemoteServerOperationArg {rs_operation_type} => move || {
@@ -965,11 +1000,15 @@ impl Commands {
                 })
             }
 
+            #[cfg(target_os = "ios")]
+
             "rs_check_remote_modified" => {
                 service_call_closure!(args, DbKey {db_key} => move || {
                     result_json_str(crate::remote_storage::rs_check_remote_modified(&db_key))
                 })
             }
+
+            #[cfg(target_os = "ios")]
 
             "rs_acknowledge_remote_change" => {
                 service_call_closure!(args, DbKey {db_key} => move || {
@@ -977,11 +1016,15 @@ impl Commands {
                 })
             }
 
+            #[cfg(target_os = "ios")]
+
             "rs_merge_with_remote" => {
                 service_call_closure!(args, DbKey {db_key} => move || {
                     result_json_str(crate::remote_storage::rs_merge_with_remote(&db_key))
                 })
             }
+
+            #[cfg(target_os = "ios")]
 
             "rs_reload_with_remote" => {
                 service_call_closure!(args, DbKey {db_key} => move || {
@@ -1024,6 +1067,7 @@ impl Commands {
         result_json_str(inner())
     }
 
+    #[cfg(target_os = "ios")]
     fn add_custom_icon_from_url(args: &str) -> ResponseJson {
         let inner = || -> OkpResult<CustomIconSummary> {
             let CommandArg::CustomIconAddUrlArg { db_key, url } = serde_json::from_str(args)?
