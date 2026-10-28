@@ -27,7 +27,7 @@ pub(crate) fn generate_backup_history_file_name(
         .strip_suffix(".kdbx")
         .map_or(kdbx_file_name, |s| s);
 
-    let secs = format!("{}", service_util::now_utc_seconds());
+    let secs = format!("{}_{}", service_util::now_utc_seconds(), uuid::Uuid::new_v4().simple());
 
     // The backup_file_name will be of form "MyPassword_10084644638414928086.kdbx" for
     // the original file name "MyPassword.kdbx" where 10084644638414928086 is the seconds from  'now' call
