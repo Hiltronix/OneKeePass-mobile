@@ -309,7 +309,7 @@ class CommonDeviceServiceImpl(val reactContext: ReactApplicationContext) : Commo
 
         } catch (e: FileNotFoundException) {
             // Need to add logic in UI layer to handle this
-            Log.e(TAG, "Error in createKdbx ${e}")
+            Log.e(TAG, "Error in createKdbx")
             // e.printStackTrace()
             info.location = location
             return info
