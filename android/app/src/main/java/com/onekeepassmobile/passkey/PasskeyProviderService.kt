@@ -73,7 +73,7 @@ class PasskeyProviderService : CredentialProviderService() {
 
                 callback.onResult(BeginGetCredentialResponse(entries))
             } catch (e: Exception) {
-                Log.e(TAG, "onBeginGetCredentialRequest error", e)
+                Log.e(TAG, "onBeginGetCredentialRequest error")
                 callback.onError(GetCredentialUnknownException(e.message))
             }
         }
@@ -141,7 +141,7 @@ class PasskeyProviderService : CredentialProviderService() {
             }
             Pair(rpId, allowIds)
         } catch (e: Exception) {
-            Log.e(TAG, "parseAssertionRequest error", e)
+            Log.e(TAG, "parseAssertionRequest error")
             Pair("", emptyList())
         }
     }
@@ -161,7 +161,7 @@ class PasskeyProviderService : CredentialProviderService() {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "findMatchingPasskeys error", e)
+            Log.e(TAG, "findMatchingPasskeys error")
             emptyList()
         }
     }
