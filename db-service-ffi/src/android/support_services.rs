@@ -72,12 +72,9 @@ impl AndroidSupportServiceExtra {
             "passkey_get_db_groups" => self.passkey_get_db_groups(json_args),
             "passkey_get_group_entries" => self.passkey_get_group_entries(json_args),
 
-            "test_call" => result_json_str(self.test_call(json_args)),
 
-            x => error_json_str(&format!(
-                "Invalid command or args: Command call {} with args {} failed",
-                x, &json_args
-            )),
+
+            _ => error_json_str("Invalid Android support command"),
         };
 
         r
@@ -689,41 +686,11 @@ fn build_registration_response_json(
 
 //////
 
-fn error_message(enum_name: &str, json_args: &str) -> OkpResult<()> {
-    let error_msg = format!(
-        "Invalid command args received {} for the api call. Expected a valid args as {}",
-        json_args, enum_name
-    );
-    return Err(OkpError::UnexpectedError(error_msg));
+fn error_message(enum_name: &str, _json_args: &str) -> OkpResult<()> {
+    Err(OkpError::UnexpectedError(format!(
+        "Invalid arguments for {}", enum_name
+    )))
 }
 
 //////
 
-impl AndroidSupportServiceExtra {
-    fn test_call(&self, _json_args: &str) -> OkpResult<()> {
-        let identifier = "TestAlias";
-        let data = "This is my sentence";
-        // let r = AppState::secure_enclave_cb_service().remove_key(identifier.to_string());
-        // debug!("Removing key done with r {:?}", &r);
-
-        let encrypted_data = AppState::secure_enclave_cb_service()
-            .encrypt_bytes(identifier.to_string(), data.as_bytes().to_vec())?;
-
-        debug!(
-            "Encrypted and size is {} and will write this data {}",
-            &encrypted_data.len(),
-            data,
-        );
-
-        let decrypted_data = AppState::secure_enclave_cb_service()
-            .decrypt_bytes(identifier.to_string(), encrypted_data)?;
-
-        debug!("Uncrypted and size is {}", &decrypted_data.len());
-
-        let s = String::from_utf8_lossy(&decrypted_data);
-
-        debug!("Uncrypted string data is  {}", &s);
-
-        Ok(())
-    }
-}
