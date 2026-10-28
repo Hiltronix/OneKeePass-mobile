@@ -11,8 +11,7 @@
                                                            api-args->json
                                                            call-api-async
                                                            invoke-api
-                                                           ios-autofill-invoke-api
- ]]
+                                                           ios-autofill-invoke-api]]
 
    [onekeepass.mobile.utils :as u :refer [contains-val?]]
    [react-native :as rn]))
