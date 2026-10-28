@@ -32,7 +32,7 @@ class AuthenticatedAutofillService : AutofillService() {
 
         // Gets the package name from the calling activity
         val packageName: String = structure.activityComponent.packageName
-        Log.d(TAG, "Package name of activity triggered autofill ${packageName}")
+
 
         // When our app's form with 'rnp-text-input' shown, the Autofill service is triggered for our app (why?)
         if (packageName == "com.onekeepassmobile") {
@@ -104,7 +104,7 @@ class AuthenticatedAutofillService : AutofillService() {
 
         // Gets the package name from the calling activity
         val packageName: String = structure.activityComponent.packageName
-        Log.d(TAG, "Package name of activity triggered autofill ${packageName}")
+
 
         // When our app's form with 'rnp-text-input' shown, the Autofill service is triggered for our app (why?)
         if (packageName == "com.onekeepassmobile") {
