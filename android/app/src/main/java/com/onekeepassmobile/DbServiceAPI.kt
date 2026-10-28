@@ -141,6 +141,10 @@ object DbServiceAPI {
         return onekeepass.mobile.ffi.ensureDbWritable(fullFileName)
     }
 
+    fun stageBackupBeforeSave(fullFileName: String): ApiResponse {
+        return onekeepass.mobile.ffi.writeToBackupOnError(fullFileName)
+    }
+
     fun writeToBackupOnError(fullFileName: String) {
 
         val r = onekeepass.mobile.ffi.writeToBackupOnError(fullFileName)
