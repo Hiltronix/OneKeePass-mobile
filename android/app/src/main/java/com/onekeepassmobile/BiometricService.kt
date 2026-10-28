@@ -47,7 +47,7 @@ class BiometricService(val reactContext: ReactApplicationContext) {
                 object : BiometricPrompt.AuthenticationCallback() {
                     override fun onAuthenticationError(errorCode: Int,
                                                        errString: CharSequence) {
-                        Log.e(TAG, "Error code: " + errorCode + " error String: " + errString)
+                        Log.e(TAG, "Biometric authentication error code: " + errorCode)
                         promise.resolve(DbServiceAPI.jsonService().okJsonString("AuthenticationCancelled"))
                         // promise.resolve(DbServiceAPI.jsonService().mapAsOkJsonString(hashMapOf("AuthenticationCancelled" to "true")))
                         //super.onAuthenticationError(errorCode, errString)
@@ -85,7 +85,7 @@ class BiometricService(val reactContext: ReactApplicationContext) {
         // Callback for biometric authentication result
         return object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                Log.e(TAG, "Error code: " + errorCode + "error String: " + errString)
+                Log.e(TAG, "Biometric authentication error code: " + errorCode)
                 super.onAuthenticationError(errorCode, errString)
             }
 
