@@ -925,7 +925,7 @@
  :common/unlock-selected-db
  (fn [{:keys [db]} [_event-id db-key]]
    {:db (assoc-in-selected-db db db-key [:locked] false)
-    :fx [[:dispatch [:external-db-change/check-external-change-pending db-key]]]}))
+    :fx []}))
 
 (reg-sub
  :current-db-locked
