@@ -1,5 +1,10 @@
 name: Hiltronix Android ARM64 test APK
 
+# Only validate the latest source revision while hardening the security branch.
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
