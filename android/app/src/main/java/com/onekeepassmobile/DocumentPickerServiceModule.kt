@@ -350,12 +350,12 @@ class DocumentPickerServiceModule(reactContext: ReactApplicationContext) : React
             promise.reject("PERMISSION_REQUIRED_TO_WRITE", e)
         } catch (e: FileNotFoundException) {
             // Need to add logic in UI layer to handle this
-            Log.e(TAG, "Error in createKdbx ${e}")
+            Log.e(TAG, "Error in createKdbx")
             // e.printStackTrace()
             promise.reject("FILE_NOT_FOUND", e)
         } catch (e: Exception) {
             // e.printStackTrace()
-            Log.e(TAG, "Error in createKdbx ${e}")
+            Log.e(TAG, "Error in createKdbx")
             promise.reject("KEY_FILE_SAVE_CALL_FAILED", e)
         }
     }
@@ -455,12 +455,12 @@ class DocumentPickerServiceModule(reactContext: ReactApplicationContext) : React
 //        promise.reject("PERMISSION_REQUIRED_TO_WRITE", e)
 //    } catch (e: FileNotFoundException) {
 //        // Need to add logic in UI layer to handle this
-//        Log.e(TAG, "Error in createKdbx ${e}")
+//        Log.e(TAG, "Error in createKdbx")
 //        // e.printStackTrace()
 //        promise.reject("FILE_NOT_FOUND", e)
 //    } catch (e: Exception) {
 //        // e.printStackTrace()
-//        Log.e(TAG, "Error in createKdbx ${e}")
+//        Log.e(TAG, "Error in createKdbx")
 //        promise.reject("KEY_FILE_SAVE_CALL_FAILED", e)
 //    }
 //}
