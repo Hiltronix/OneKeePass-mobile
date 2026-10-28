@@ -54,6 +54,16 @@ jobs:
       - name: Install Yarn Classic
         run: npm install --global yarn@1.22.22
 
+      - name: Regenerate JavaScript lockfile without camera library
+        shell: bash
+        run: |
+          set -euo pipefail
+          yarn install --ignore-scripts --non-interactive
+          if grep -q 'react-native-vision-camera' yarn.lock; then
+            echo "::error::Removed native camera package persists in yarn.lock"
+            exit 1
+          fi
+
       - name: Configure Rust
         shell: bash
         run: |
@@ -249,6 +259,32 @@ jobs:
           done
           echo "PASS: removed SFTP/WebDAV UI modules are absent"
 
+      - name: Assert in-app camera code is removed and external OTP import remains
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          pkg = json.loads(Path("package.json").read_text())
+          assert "react-native-vision-camera" not in pkg["dependencies"]
+          base = Path("src-cljs/cljs-main-app-src/main/onekeepass/mobile")
+          for p in ("scan_otp_qr.cljs", "events/scan_otp_qr.cljs"):
+              assert not (base / p).exists(), p
+          for p in ("background.cljs", "background_common.cljs", "rn_components.cljs", "appbar.cljs"):
+              text = (base / p).read_text()
+              for token in ("react-native-vision-camera", "scan-otp-qr", "CAMERA_SCANNER_PAGE_ID"):
+                  assert token not in text, (p, token)
+          manifest = Path("android/app/src/main/AndroidManifest.xml").read_text()
+          assert "android.permission.CAMERA" not in manifest
+          assert "android:scheme=\\"otpauth\\"" in manifest
+          assert "android:host=\\"totp\\"" in manifest
+          assert "otp-auth-url-on-create" in (base / "background.cljs").read_text()
+          assert "otp-url-received" in (base / "core.cljs").read_text()
+          assert not Path("foss-stubs/react-native-vision-camera.js").exists()
+          print("PASS: no camera library or scanner UI; external otpauth:// TOTP entry retained")
+          PY
+
       - name: Compile unsigned Android release APK
         shell: bash
         run: bash scripts/build-android-foss.sh
@@ -317,16 +353,16 @@ jobs:
       # GITHUB_TOKEN commits intentionally do not trigger another workflow.
       # Only persist an updated lock after all source, security, build, and
       # signing checks have succeeded.
-      - name: Commit validated Android Cargo.lock to isolated security branch
+      - name: Commit validated Android Rust and JavaScript lockfiles to isolated security branch
         if: github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add db-service-ffi/Cargo.lock
+          git add db-service-ffi/Cargo.lock yarn.lock
           if ! git diff --cached --quiet; then
-            git commit -m "Lock Android core and patched cryptography/XML dependency versions"
+            git commit -m "Lock offline Android core and camera-free JavaScript dependency versions"
             git push origin HEAD:security/android-logging-crypto-2026-10-28
           else
             echo "Cargo.lock already matches the validated graph"
