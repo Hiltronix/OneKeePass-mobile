@@ -266,32 +266,6 @@ fn internal_read_kdbx(file: &mut File, json_args: &str) -> OkpResult<KdbxLoadedE
     }
 }
 
-#[cfg(target_os = "android")]
-fn copy_staged_kdbx_to_provider(writer: &mut File, backup_file: &mut File) -> std::io::Result<()> {
-    use std::io::{Error, ErrorKind, SeekFrom};
-
-    let staged_len = backup_file.metadata()?.len();
-    if staged_len < 8 {
-        return Err(Error::new(ErrorKind::InvalidData, "Staged KDBX is incomplete"));
-    }
-
-    // Check that the provider supports seeking and truncation before changing contents.
-    // Set the current length so this capability check does not discard user data.
-    let original_len = writer.seek(SeekFrom::End(0))?;
-    writer.set_len(original_len)?;
-    writer.rewind()?;
-    backup_file.rewind()?;
-
-    let bytes_written = std::io::copy(backup_file, writer)?;
-    if bytes_written != staged_len {
-        return Err(Error::new(ErrorKind::UnexpectedEof, "Incomplete staged KDBX copy"));
-    }
-
-    // An older, longer KDBX must not leave stale trailing bytes in the provider file.
-    writer.set_len(bytes_written)?;
-    writer.sync_all()
-}
-
 pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
     // Needs to be checked before the db file is opened for writing below
     // Android checks read-only state and stages a durable encrypted recovery file
@@ -387,7 +361,7 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                     }
 
                     #[cfg(target_os = "android")]
-                    let copy_result = copy_staged_kdbx_to_provider(&mut writer, &mut bf_writer);
+                    let copy_result = crate::db_file_commit::copy_staged_kdbx_to_provider(&mut writer, &mut bf_writer);
                     #[cfg(not(target_os = "android"))]
                     let copy_result = std::io::copy(&mut bf_writer, &mut writer).map(|_| ());
 
