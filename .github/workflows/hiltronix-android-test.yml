@@ -73,6 +73,35 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Test KDBX staged provider replacement and failure paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --edition=2021 --test db-service-ffi/src/db_file_commit.rs \
+            -o "$RUNNER_TEMP/kdbx-provider-tests"
+          "$RUNNER_TEMP/kdbx-provider-tests"
+
+      - name: Verify KDBX recovery is staged before SAF write access
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          module = Path("android/app/src/main/java/com/onekeepassmobile/DbServiceModule.kt").read_text()
+          save = module.split("fun saveKdbx(", 1)[1].split("fun createKdbx(", 1)[0]
+          assert 'stageBackupBeforeSave(fullFileNameUri)' in save
+          assert 'openFileDescriptor(uri, "rw")' in save
+          assert 'openFileDescriptor(uri, "rwt")' not in save
+          assert save.index('stageBackupBeforeSave(fullFileNameUri)') < save.index('openFileDescriptor(uri, "rw")')
+          assert save.index('val response = fd.use') < save.index('promise.resolve(response.result)')
+          rust = Path("db-service-ffi/src/udl_functions.rs").read_text()
+          assert 'crate::db_file_commit::copy_staged_kdbx_to_provider' in rust
+          assert 'Creating encrypted KDBX backup failed; save aborted' in rust
+          assert 'AppState::add_last_backup_name_on_error(&db_key, path)' in rust
+          print("PASS: KDBX stage, SAF open mode, copy errors, and recovery paths")
+          PY
+
       - name: Configure native toolchain prerequisites
         run: |
           sudo apt-get update
