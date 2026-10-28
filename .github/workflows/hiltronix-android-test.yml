@@ -195,6 +195,24 @@ jobs:
               raise SystemExit("Production Rust logging restriction missing")
           print("PASS: sensitive logging and test-command static checks")
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+          release = Path("android/app/src/release/AndroidManifest.xml").read_text()
+          native = Path("db-service-ffi/src/commands.rs").read_text()
+          required = (
+              'android.permission.INTERNET',
+              'android.permission.ACCESS_NETWORK_STATE',
+              'android.permission.CAMERA',
+              'tools:node="remove"',
+              'android:usesCleartextTraffic="false"',
+          )
+          for text in required:
+              if text not in release:
+                  raise SystemExit(f"Missing release manifest protection: {text}")
+          if 'command_name.starts_with("rs_")' not in native or 'command_name == "add_custom_icon_from_url"' not in native:
+              raise SystemExit("Android network command denylist is missing")
+          print("PASS: offline Android release source restrictions")
+          PY
 
       - name: Compile unsigned Android release APK
         shell: bash
@@ -236,6 +254,22 @@ jobs:
           sha256sum "$apk" > dist/SHA256SUMS.txt
           cat dist/APK-PERMISSIONS.txt
           cat dist/SHA256SUMS.txt
+
+      - name: Verify release APK is offline and does not request camera access
+        shell: bash
+        run: |
+          set -euo pipefail
+          permissions=dist/APK-PERMISSIONS.txt
+          test -s "$permissions"
+          for permission in INTERNET ACCESS_NETWORK_STATE CAMERA; do
+            if grep -Eq "name='android\\.permission\\.$permission'" "$permissions"; then
+              echo "::error::Forbidden Android release permission: $permission"
+              exit 1
+            fi
+          done
+          # Keep essential biometric and credential-manager functionality.
+          grep -Eq "name='android\\.permission\\.USE_BIOMETRIC'" "$permissions"
+          echo "PASS: no internet, network state, or camera permission in release APK"
 
       - name: Upload Android test APK
         uses: actions/upload-artifact@v4
