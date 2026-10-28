@@ -29,8 +29,8 @@ pub(crate) fn generate_backup_history_file_name(
 
     let secs = format!("{}_{}", service_util::now_utc_seconds(), uuid::Uuid::new_v4().simple());
 
-    // The backup_file_name will be of form "MyPassword_10084644638414928086.kdbx" for
-    // the original file name "MyPassword.kdbx" where 10084644638414928086 is the seconds from  'now' call
+    // Include an epoch timestamp and a random UUID. Repeated saves in the same
+    // second cannot overwrite an earlier encrypted recovery snapshot.
     let backup_file_name = vec![fname_no_extension, "_", &secs, ".kdbx"].join("");
 
     //debug!("backup_file_name generated is {}", backup_file_name);
@@ -139,6 +139,18 @@ pub(crate) fn remove_orphaned_backup_dirs<P: AsRef<Path>>(
             .map_or(false, |dir_name| dirs_in_use.contains(dir_name));
 
         if in_use {
+            // The app starts this cleanup before any database is opened.
+            // Interrupted writes can leave encrypted .partial snapshots behind.
+            if let Ok(files) = fs::read_dir(&path) {
+                for file in files.flatten() {
+                    let unfinished = file.path();
+                    if unfinished.is_file()
+                        && unfinished.extension().and_then(|ext| ext.to_str()) == Some("partial")
+                    {
+                        let _ = fs::remove_file(unfinished);
+                    }
+                }
+            }
             continue;
         }
 
