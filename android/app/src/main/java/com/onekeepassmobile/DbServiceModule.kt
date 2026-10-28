@@ -100,7 +100,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun invokeCommand(commandName: String, args: String, promise: Promise) {
         executorService.execute {
-            Log.d(TAG, "invokeCommand is called with command name $commandName and args $args")
+            // Raw commands may contain passwords, private keys and entry data.
             val response = DbServiceAPI.invokeCommand(commandName, args)
             promise.resolve(response)
         }
@@ -110,10 +110,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun androidInvokeCommand(commandName: String, args: String, promise: Promise) {
         executorService.execute {
-            Log.d(
-                TAG,
-                "androidInvokeCommand is called with command name $commandName and args $args"
-            )
+            // Do not log raw command arguments.
             val response = DbServiceAPI.androidInvokeCommand(commandName, args)
             promise.resolve(response)
         }
@@ -121,7 +118,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun readKdbx(fullFileNameUri: String, args: String, promise: Promise) {
-        Log.d(TAG, "readKdbx is called with fullFileNameUri $fullFileNameUri  ")
+
         executorService.execute {
             val uri = Uri.parse(fullFileNameUri);
             try {
@@ -262,9 +259,9 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     fun createKdbx(fileNameUri: String, args: String, promise: Promise) {
 
         executorService.execute {
-            Log.i(TAG, "Received fullFileName is $fileNameUri")
+
             val uri = Uri.parse(fileNameUri);
-            Log.i(TAG, "Parsed uri is $uri")
+
             try {
                 // Here it is assumed the fileNameUri starts with content:// for which there will be
                 // a resolver. If we use internal file path, we need to do something similar to readKdbx
@@ -323,9 +320,9 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
         promise: Promise
     ) {
         executorService.execute {
-            Log.i(TAG, "Received fullFileName is $newFullFileNameUri")
+
             val uri = Uri.parse(newFullFileNameUri);
-            Log.i(TAG, "Parsed uri is $uri")
+
             try {
                 // See rational to use mode:rwt here https://issuetracker.google.com/issues/180526528
                 // Our requirement is at least "rw"
@@ -390,7 +387,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     // To be replaced by the generic handlePickedFile
     @ReactMethod
     fun copyKeyFile(fullKeyFileNameUri: String, promise: Promise) {
-        Log.d(TAG, "copyKeyFile is called with fullFileNameUri $fullKeyFileNameUri  ")
+
         executorService.execute {
             val uri = Uri.parse(fullKeyFileNameUri);
             try {
@@ -434,10 +431,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     // To be replaced by the generic handlePickedFile
     @ReactMethod
     fun uploadAttachment(fullKeyFileNameUri: String, jsonArgs: String, promise: Promise) {
-        Log.d(
-            TAG,
-            "uploadAttachment is called with fullFileNameUri $fullKeyFileNameUri and jsonArgs $jsonArgs "
-        )
+
         executorService.execute {
             val uri = Uri.parse(fullKeyFileNameUri);
             try {
@@ -484,10 +478,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     // into the loaded DB. Mirrors uploadAttachment / handlePickedFile.
     @ReactMethod
     fun addCustomIconFromFile(fullKeyFileNameUri: String, jsonArgs: String, promise: Promise) {
-        Log.d(
-            TAG,
-            "addCustomIconFromFile is called with fullFileNameUri $fullKeyFileNameUri and jsonArgs $jsonArgs "
-        )
+
         executorService.execute {
             val uri = Uri.parse(fullKeyFileNameUri);
             try {
@@ -522,10 +513,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     // TODO: Replace copyKeyFile,uploadAttachment to use this common fn after making required changes in rust side
     @ReactMethod
     fun handlePickedFile(fullKeyFileNameUri: String, jsonArgs: String, promise: Promise) {
-        Log.d(
-            TAG,
-            "The handlePickedFile is called with fullFileNameUri $fullKeyFileNameUri and jsonArgs $jsonArgs "
-        )
+
         executorService.execute {
             val uri = Uri.parse(fullKeyFileNameUri);
             try {
@@ -569,12 +557,12 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
     private fun resolveResponse(response: ApiResponse, promise: Promise) {
         when (response) {
             is ApiResponse.Success -> {
-                Log.d(TAG, "File created using fd with SUCCESS response ${response.result}")
+
                 promise.resolve(response.result)
             }
 
             is ApiResponse.Failure -> {
-                Log.d(TAG, "File created using fd with FAILURE response $response.result")
+
                 promise.resolve(response.result)
             }
         }
@@ -610,13 +598,13 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
         )
         try {
             val refreshed = contentResolver.refresh(uri, null, signal)
-            Log.d(TAG, "refresh() for $uri returned $refreshed")
+
         } catch (e: OperationCanceledException) {
             // Timed out via signal.cancel(); read the already-available copy.
-            Log.w(TAG, "refresh() timed out after ${REFRESH_TIMEOUT_MS}ms for $uri; reading current copy")
+            Log.w(TAG, "Document provider refresh timed out; reading current copy")
         } catch (e: Exception) {
             // Provider may not support refresh or may reject it; we read regardless.
-            Log.w(TAG, "refresh() not honored by provider for $uri: $e")
+            Log.w(TAG, "Document provider refresh unavailable; reading current copy")
         } finally {
             // refresh() already returned/threw, so stop the pending cancel.
             timeoutFuture.cancel(false)
@@ -641,7 +629,7 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 }
 
                 is ApiResponse.Failure -> {
-                    Log.d(TAG, "verifyDbFileChanged with FAILURE response $response.result")
+
                     promise.resolve(response.result)
                     true // resolved
                 }
