@@ -14,7 +14,7 @@
             [onekeepass.mobile.events.open-database :as opndb-events]
             [onekeepass.mobile.events.settings :as stgs-events]
             [onekeepass.mobile.events.dialogs :as dlg-events]
-            [onekeepass.mobile.events.remote-storage :as rs-events]
+
             [onekeepass.mobile.grouped-list :as gl]
             [onekeepass.mobile.rn-components
              :as rnc
@@ -65,14 +65,6 @@
 
                                          (ndb-events/done-on-click))
                                        (dlg-events/start-page-storage-selection-dialog-close))]
-
-      [store-sel-button "sftp" (fn []
-                                 (rs-events/remote-storage-type-selected :sftp kw-browse-type rs-opt-arg)
-                                 (dlg-events/start-page-storage-selection-dialog-close))]
-
-      [store-sel-button "webdav" (fn []
-                                   (rs-events/remote-storage-type-selected :webdav kw-browse-type rs-opt-arg)
-                                   (dlg-events/start-page-storage-selection-dialog-close))]
 
       [store-sel-button "cancel" dlg-events/start-page-storage-selection-dialog-close]]]])
 
