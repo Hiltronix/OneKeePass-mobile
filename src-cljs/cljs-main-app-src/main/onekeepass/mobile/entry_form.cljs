@@ -158,7 +158,8 @@
 (defn entry-type-selection []
   (let [entry-types (clj->js
                      (->> @(cmn-events/all-entry-type-headers)
-                          (mapv (fn [{:keys [name uuid]}]
+                          (remove #(contains? const/REMOTE_CONNECTION_TYPE_UUIDS (:uuid %)))
+                           (mapv (fn [{:keys [name uuid]}]
                                   {:key uuid :label name}))))
         entry-type-name-selection (form-events/entry-form-field :entry-type-name-selection)]
     [select-field {:text-label (str (lstr-l 'entryType) "*")
@@ -578,15 +579,6 @@
     ;; section-fields is a list of map - one map for each field in that section
     ;; In read mode there is no box around all the sections - each one is a card of its own
     [rn-view {:style (if edit box-style-2 {:flexDirection "column"})}
-     ;; Banner explaining the dual-use Password field and the
-     ;; attach-private-key flow for REMOTE_CONNECTION_SFTP entries.
-     (when (and edit (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP))
-       [rn-view {:style {:padding 10
-                         :margin-bottom 5
-                         :background-color @rnc/secondary-container-color
-                         :borderRadius 4}}
-        [rnp-text {:style {:font-size 12}}
-         (lstr-l "sftpEntryAuthHint")]])
      (doall
       (for [section-name section-names]
         ^{:key section-name} [section-content {:edit edit
