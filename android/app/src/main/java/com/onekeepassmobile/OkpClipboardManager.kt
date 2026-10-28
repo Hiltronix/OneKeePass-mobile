@@ -25,7 +25,7 @@ object OkpClipboardManager {
 
     fun setClipboardManager(context:Context) {
         clipboardManager = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        Log.d(TAG,"The clipboardManager is created")
+
     }
 
     fun setText(clipDataArg: AppClipboardCopyData) {
