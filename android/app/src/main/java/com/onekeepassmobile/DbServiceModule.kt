@@ -165,11 +165,11 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
             } catch (e: FileNotFoundException) {
                 // Need to add logic in UI layer to handle this
                 // e.printStackTrace()
-                Log.e(TAG, "Error in readKdbx ${e}")
+                Log.e(TAG, "Error in readKdbx")
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in readKdbx ${e}")
+                Log.e(TAG, "Error in readKdbx")
                 promise.reject(E_READ_CALL_FAILED, e)
             }
         }
@@ -241,13 +241,13 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
             } catch (e: FileNotFoundException) {
                 // e.printStackTrace()
                 // Need to add logic in UI layer to handle this
-                Log.e(TAG, "Error in saveKdbx ${e}")
+                Log.e(TAG, "Error in saveKdbx")
                 //TODO: Store the db file with changed data to backup for later offline use
                 DbServiceAPI.writeToBackupOnError(fullFileNameUri)
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in saveKdbx ${e}")
+                Log.e(TAG, "Error in saveKdbx")
                 //TODO: Store the db file with changed data to backup for later offline use
                 DbServiceAPI.writeToBackupOnError(fullFileNameUri)
                 promise.reject(E_SAVE_CALL_FAILED, e)
@@ -301,12 +301,12 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 promise.reject(E_PERMISSION_REQUIRED_TO_WRITE, e)
             } catch (e: FileNotFoundException) {
                 // Need to add logic in UI layer to handle this
-                Log.e(TAG, "Error in createKdbx ${e}")
+                Log.e(TAG, "Error in createKdbx")
                 // e.printStackTrace()
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in createKdbx ${e}")
+                Log.e(TAG, "Error in createKdbx")
                 promise.reject(E_CREATE_CALL_FAILED, e)
             }
         }
@@ -355,12 +355,12 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 promise.reject(E_PERMISSION_REQUIRED_TO_WRITE, e)
             } catch (e: FileNotFoundException) {
                 // Need to add logic in UI layer to handle this
-                Log.e(TAG, "Error in completeSaveAsOnError ${e}")
+                Log.e(TAG, "Error in completeSaveAsOnError")
                 // e.printStackTrace()
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in completeSaveAsOnError ${e}")
+                Log.e(TAG, "Error in completeSaveAsOnError")
                 promise.reject(E_SAVE_AS_CALL_FAILED, e)
             }
         }
@@ -417,11 +417,11 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
             } catch (e: FileNotFoundException) {
                 // Need to add logic in UI layer to handle this
                 // e.printStackTrace()
-                Log.e(TAG, "Error in copyKeyFile ${e}")
+                Log.e(TAG, "Error in copyKeyFile")
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in copyKeyFile ${e}")
+                Log.e(TAG, "Error in copyKeyFile")
                 promise.reject(E_READ_CALL_FAILED, e)
             }
         }
@@ -462,11 +462,11 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
             } catch (e: FileNotFoundException) {
                 // Need to add logic in UI layer to handle this
                 // e.printStackTrace()
-                Log.e(TAG, "Error in uploadAttachment ${e}")
+                Log.e(TAG, "Error in uploadAttachment")
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in uploadAttachment ${e}")
+                Log.e(TAG, "Error in uploadAttachment")
                 promise.reject(E_READ_CALL_FAILED, e)
             }
         }
@@ -500,10 +500,10 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 Log.e(TAG, "SecurityException due to in sufficient permission")
                 promise.reject(E_PERMISSION_REQUIRED_TO_READ, e)
             } catch (e: FileNotFoundException) {
-                Log.e(TAG, "Error in addCustomIconFromFile ${e}")
+                Log.e(TAG, "Error in addCustomIconFromFile")
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
-                Log.e(TAG, "Error in addCustomIconFromFile ${e}")
+                Log.e(TAG, "Error in addCustomIconFromFile")
                 promise.reject(E_READ_CALL_FAILED, e)
             }
         }
@@ -544,11 +544,11 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
             } catch (e: FileNotFoundException) {
                 // Need to add logic in UI layer to handle this
                 // e.printStackTrace()
-                Log.e(TAG, "Error in uploadAttachment ${e}")
+                Log.e(TAG, "Error in uploadAttachment")
                 promise.reject(E_FILE_NOT_FOUND, e)
             } catch (e: Exception) {
                 // e.printStackTrace()
-                Log.e(TAG, "Error in uploadAttachment ${e}")
+                Log.e(TAG, "Error in uploadAttachment")
                 promise.reject(E_READ_CALL_FAILED, e)
             }
         }
