@@ -277,8 +277,8 @@ jobs:
                   assert token not in text, (p, token)
           manifest = Path("android/app/src/main/AndroidManifest.xml").read_text()
           assert "android.permission.CAMERA" not in manifest
-          assert "android:scheme=\\"otpauth\\"" in manifest
-          assert "android:host=\\"totp\\"" in manifest
+          assert 'android:scheme="otpauth"' in manifest
+          assert 'android:host="totp"' in manifest
           assert "otp-auth-url-on-create" in (base / "background.cljs").read_text()
           assert "otp-url-received" in (base / "core.cljs").read_text()
           assert not Path("foss-stubs/react-native-vision-camera.js").exists()
