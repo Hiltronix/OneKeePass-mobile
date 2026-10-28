@@ -150,7 +150,7 @@ object DbServiceAPI {
             }
 
             is ApiResponse.Failure -> {
-                Log.e(TAG, "writeToBackupOnError call failed with error ${r.result}")
+                Log.e(TAG, "writeToBackupOnError call failed")
             }
         }
     }
