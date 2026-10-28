@@ -35,7 +35,7 @@ class ExportServiceModule(reactContext: ReactApplicationContext) : ReactContextB
     private val activityEventListener =
             object : BaseActivityEventListener() {
                 override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, intent: Intent?) {
-                    Log.d(TAG, "requestCode code is $requestCode resultCode $resultCode intent $intent for activity $activity")
+
                     if (requestCode == EXPORT_DATA_REQUEST_CODE) {
                         modulePromise?.let { promise ->
                             // Need to check resultCode on device testing and resolve accordingly
@@ -56,7 +56,7 @@ class ExportServiceModule(reactContext: ReactApplicationContext) : ReactContextB
 
     @ReactMethod
     fun exportKdbx(fullFileNameUri: String, promise: Promise) {
-        Log.d(TAG, "exportKdbx is called with fullFileNameUri $fullFileNameUri")
+
 
         val currentActivity = reactApplicationContext.currentActivity
         if (currentActivity == null) {
