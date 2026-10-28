@@ -43,7 +43,7 @@ object FileUtils {
                         lastModifiedTime = it.longOrNull(DocumentsContract.Document.COLUMN_LAST_MODIFIED),
                         path = null,
                 )
-                Log.d(TAG, "File source is $fs")
+
                 fs
             }
         }
