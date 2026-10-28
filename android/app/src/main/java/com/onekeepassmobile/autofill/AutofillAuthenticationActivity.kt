@@ -46,7 +46,6 @@ class AutofillAuthenticationActivity() : ReactActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.d("AutofillAuthenticationActivity", "onCreate of AutofillAuthenticationActivity is called ...with intent ${intent}")
         autofillActivity = this
         super.onCreate(savedInstanceState)
     }
@@ -185,7 +184,6 @@ class AutofillAuthenticationActivity : Activity(), DefaultHardwareBackBtnHandler
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        Log.d(TAG, "AF onActivityResult is called with requestCode: $requestCode, resultCode: $resultCode, intent:$data")
         super.onActivityResult(requestCode, resultCode, data)
         reactInstanceManager.onActivityResult(this,requestCode,resultCode,data)
     }
