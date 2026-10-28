@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{app_state::AppState, udl_types::SecureKeyOperationError, OkpResult};
 use crate::{biometric_auth, ios, key_secure};
 
-use crate::util::{remove_dir_contents, remove_files};
+use crate::util::remove_dir_contents;
 
 //////////
 
@@ -53,13 +53,6 @@ pub fn app_reset() -> OkpResult<()> {
 
     // Deletes contents of key_files dir including sub dirs found under this dir
     let _ = remove_dir_contents(AppState::key_files_dir_path());
-
-    //  Deletes contents of remote_storage/sftp including sub dirs found under this dir
-    // This ensure we keep the sftp sub dir
-    let _ = remove_dir_contents(AppState::sftp_private_keys_path());
-
-    // Deletes files found under remote_storage
-    let _ = remove_files(AppState::remote_storage_path());
 
     AppState::reset_preference();
 
