@@ -42,7 +42,7 @@ impl ConnectionConfigReaderWriter for ConnectionConfigReaderWriterImpl {
 
             let s = String::from_utf8_lossy(&decrypted_data);
 
-            debug!("Uncrypted string data is  {}", &s);
+            // Never log decrypted SFTP/WebDAV credentials.
 
             Ok(s.to_string())
         } else {
