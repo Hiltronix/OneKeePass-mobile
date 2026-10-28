@@ -93,7 +93,6 @@
 (defn register-app-becomes-active []
   (register-guarded-event-listener EVENT_APP_BECOMES_ACTIVE
                                    (fn [_event-message]
-                                     (dispatch [:external-db-change/poll-open-remote-dbs])
                                      ;; Neither the entry list's refresh timer nor the native
                                      ;; animation of its token bars can be trusted across a
                                      ;; spell in the background
