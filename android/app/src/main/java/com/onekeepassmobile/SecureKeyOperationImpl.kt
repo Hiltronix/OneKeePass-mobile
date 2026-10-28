@@ -18,7 +18,7 @@ class SecureKeyOperationImpl(val reactContext: ReactApplicationContext) : Secure
 
     init {
         createStore()
-        Log.d(TAG, "sharedPreferences is created and set $sharedPreferences")
+
     }
 
     fun createStore() {
@@ -39,7 +39,7 @@ class SecureKeyOperationImpl(val reactContext: ReactApplicationContext) : Secure
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
-        Log.d(TAG, "sharedPreferences is created")
+
     }
 
     override fun storeKey(dbKey: String, encKeyData: String) {
@@ -48,15 +48,15 @@ class SecureKeyOperationImpl(val reactContext: ReactApplicationContext) : Secure
         // again in using MasterKey with EncryptedSharedPreferences
         with(sharedPreferences!!.edit()) {
             putString(dbKey, encKeyData)
-            Log.d(TAG, "Stored dbKey $dbKey with value $encKeyData")
+
             // Needs to call apply for committing the changes
             apply()
         }
     }
 
     override fun getKey(dbKey: String): String? {
-        var k = sharedPreferences?.getString(dbKey, "NoKey")
-        Log.d(TAG, "Returning key $k")
+        val k = sharedPreferences?.getString(dbKey, "NoKey")
+
         return k
     }
 
