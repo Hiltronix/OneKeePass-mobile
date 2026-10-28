@@ -331,19 +331,17 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 // Our requirement is at least "rw"
                 val fd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "rwt");
                 if (fd != null) {
-                    // Rust side the file should not be closed. So fd.detachFd() is not used.
-                    // if we use fd.detachFd(), then 'create db file' for google drive did not work
-                    val response = DbServiceAPI.completeSaveAsOnError(
-                        fd.fd.toULong(),
-                        oldFullFileNameUri,
-                        newFullFileNameUri,
-                        fileName
-                    );
+                    // Rust borrows this descriptor but returns ownership to Kotlin.
+                    // Some providers finalize the document only when it is closed.
+                    val response = fd.use { descriptor ->
+                        DbServiceAPI.completeSaveAsOnError(
+                            descriptor.fd.toULong(),
+                            oldFullFileNameUri,
+                            newFullFileNameUri,
+                            fileName
+                        )
+                    }
                     resolveResponse(response, promise)
-                    // IMPORTANT:
-                    // The caller is responsible for closing the file using its file descriptor
-                    // as the file is not yet closed
-                    fd.close()
                 } else {
                     // Do we need to ask the user select the kdbx again to read ?
                     promise.reject(
