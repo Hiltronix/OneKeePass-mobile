@@ -90,7 +90,7 @@ class PasskeyModule(reactContext: ReactApplicationContext) :
 
             promise.resolve("{\"ok\":${json}}")
         } catch (e: Exception) {
-            Log.e(TAG, "getPasskeyContext error", e)
+            Log.e(TAG, "getPasskeyContext error")
             promise.resolve("{\"ok\":null}")
         }
     }
