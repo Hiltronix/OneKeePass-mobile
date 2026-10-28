@@ -379,7 +379,7 @@
      {:db (assoc db :current-db-file-name full-file-name-uri)
       ;; For now, the category page of the chosen db is shown irrespective of the previous active page
       :fx [[:dispatch [:entry-category/load-categories-to-show]]
-           [:dispatch [:common/next-page ENTRY_CATEGORY_PAGE_ID database-name]]
+           [:dispatch [:common/next-page ENTRY_CATEGORY_PAGE_ID database-name]]]})))
 
 (defn notify-android-af
   "Wrapps android autofill specific events if required from main app events
