@@ -135,7 +135,6 @@ jobs:
           required = {
               ("crypto-bigint", "0.7.10"),
               ("quick-xml", "0.41.0"),
-              ("ctutils", "0.4.4"),
               ("p256", "0.14.0-rc.10"),
           }
           present = {(name, version) for name, vs in versions.items() for version in vs}
@@ -143,8 +142,15 @@ jobs:
           missing = required - present
           for name in ("crypto-bigint", "quick-xml", "ctutils", "p256"):
               print(f"{name}: {', '.join(sorted(versions.get(name, [])))}")
-          if old or missing:
-              sys.exit(f"SECURITY GATE FAILED: forbidden={sorted(old)} missing={sorted(missing)}")
+          ctutils_ok = any(
+              tuple(int(x) for x in v.split(".")) >= (0, 4, 4)
+              for v in versions.get("ctutils", set())
+          )
+          if old or missing or not ctutils_ok:
+              sys.exit(
+                  f"SECURITY GATE FAILED: forbidden={sorted(old)} "
+                  f"missing={sorted(missing)} ctutils_minimum_met={ctutils_ok}"
+              )
           print("PASS: patched shared core and cryptography/XML dependencies")
           PY
 
