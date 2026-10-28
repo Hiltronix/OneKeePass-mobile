@@ -266,10 +266,36 @@ fn internal_read_kdbx(file: &mut File, json_args: &str) -> OkpResult<KdbxLoadedE
     }
 }
 
+#[cfg(target_os = "android")]
+fn copy_staged_kdbx_to_provider(writer: &mut File, backup_file: &mut File) -> std::io::Result<()> {
+    use std::io::{Error, ErrorKind, SeekFrom};
+
+    let staged_len = backup_file.metadata()?.len();
+    if staged_len < 8 {
+        return Err(Error::new(ErrorKind::InvalidData, "Staged KDBX is incomplete"));
+    }
+
+    // Check that the provider supports seeking and truncation before changing contents.
+    // Set the current length so this capability check does not discard user data.
+    let original_len = writer.seek(SeekFrom::End(0))?;
+    writer.set_len(original_len)?;
+    writer.rewind()?;
+    backup_file.rewind()?;
+
+    let bytes_written = std::io::copy(backup_file, writer)?;
+    if bytes_written != staged_len {
+        return Err(Error::new(ErrorKind::UnexpectedEof, "Incomplete staged KDBX copy"));
+    }
+
+    // An older, longer KDBX must not leave stale trailing bytes in the provider file.
+    writer.set_len(bytes_written)?;
+    writer.sync_all()
+}
+
 pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
     // Needs to be checked before the db file is opened for writing below
-    // On android the db file is opened (and truncated) before this call and there the same check
-    // is done first through 'ensure_db_writable' - see saveKdbx in DbServiceModule.kt
+    // Android checks read-only state and stages a durable encrypted recovery file
+    // before opening the destination without the truncation flag.
     if let FileArgs::FileDecriptorWithFullFileName { full_file_name, .. }
     | FileArgs::FullFileName { full_file_name } = &file_args
     {
@@ -288,14 +314,25 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
             full_file_name,
             file_name,
         } => {
-            fd_used = true;
+            // On Android, Rust owns a duplicate descriptor. The Kotlin caller retains
+            // ownership of the original ParcelFileDescriptor and closes it on every path.
+            fd_used = !cfg!(target_os = "android");
             let backup_file_name =
                 backup::generate_backup_history_file_name(&full_file_name, &file_name);
-            (
-                unsafe { util::get_file_from_fd(fd) },
-                full_file_name,
-                backup_file_name,
-            )
+
+            #[cfg(target_os = "android")]
+            let writer = {
+                use std::os::fd::BorrowedFd;
+                let borrowed = unsafe { BorrowedFd::borrow_raw(fd as i32) };
+                match borrowed.try_clone_to_owned() {
+                    Ok(owned) => File::from(owned),
+                    Err(e) => return_api_response_failure!(e),
+                }
+            };
+            #[cfg(not(target_os = "android"))]
+            let writer = unsafe { util::get_file_from_fd(fd) };
+
+            (writer, full_file_name, backup_file_name)
         }
         FileArgs::FullFileName { full_file_name } => {
             match full_path_file_to_create(&full_file_name) {
@@ -345,8 +382,17 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                         }
                     }
 
-                    //let _n = std::io::copy(&mut bf_writer, &mut writer);
-                    if let Err(e) = std::io::copy(&mut bf_writer, &mut writer) {
+                    #[cfg(target_os = "android")]
+                    let copy_result = copy_staged_kdbx_to_provider(&mut writer, &mut bf_writer);
+                    #[cfg(not(target_os = "android"))]
+                    let copy_result = std::io::copy(&mut bf_writer, &mut writer).map(|_| ());
+
+                    if let Err(e) = copy_result {
+                        // A failed provider write can damage the destination. Retain the
+                        // durable encrypted stage so Save As / recovery can restore data.
+                        if let Some(path) = backup_file_name.as_deref() {
+                            AppState::add_last_backup_name_on_error(&db_key, path);
+                        }
                         return_api_response_failure!(e)
                     }
 
@@ -370,12 +416,17 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
             }
         }
         None => {
-            // This is not used. Will this ever happen?. Need to find use case where we do not have backup file
-            log::warn!("No backup file is not found and writting to the db file directly");
-            // TODO: Call verify checksum here using writer "db_service::verify_db_file_checksum"
-            match db_service::save_kdbx_to_writer(&mut writer, &db_key) {
-                Ok(r) => r,
-                Err(e) => return_api_response_failure!(e),
+            // Never overwrite an Android KDBX if a recoverable encrypted stage
+            // cannot be created. The iOS path is kept unchanged for now.
+            #[cfg(target_os = "android")]
+            return_api_response_failure!("Creating encrypted KDBX backup failed; save aborted");
+
+            #[cfg(not(target_os = "android"))]
+            {
+                match db_service::save_kdbx_to_writer(&mut writer, &db_key) {
+                    Ok(r) => r,
+                    Err(e) => return_api_response_failure!(e),
+                }
             }
         }
     };
@@ -392,6 +443,7 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
         Err(e) => InvokeResult::<()>::with_error(format!("{:?}", e).as_str()).json_str(),
     };
 
+    AppState::remove_last_backup_name_on_error(&db_key);
     backup::prune_backup_history_files(&db_key);
 
     // Call file info to get modified time and update recent modified time
@@ -444,16 +496,24 @@ pub(crate) fn write_to_backup_on_error(full_file_name_uri: String) -> ApiRespons
         let mut backup_file = open_backup_file(backup_file_name.as_ref())
             .ok_or(OkpError::DataError("Backup file could not be created"))?;
 
-        let r = db_service::save_kdbx_to_writer(&mut backup_file, &full_file_name_uri);
-        debug!("Writing backup for the uri {} is done", &file_name);
+        // A backup cannot be considered recoverable until serialization and
+        // fsync both succeed. Never retain a partially written backup as latest.
+        let result = db_service::save_kdbx_to_writer(&mut backup_file, &full_file_name_uri)
+            .and_then(|saved| {
+                backup_file.sync_all()?;
+                Ok(saved)
+            });
+        drop(backup_file);
 
-        // Need to store
         if let Some(bkp_file_name) = backup_file_name.as_deref() {
-            AppState::add_last_backup_name_on_error(&full_file_name_uri, bkp_file_name);
-            debug!("Added the backup file key on save error")
+            if result.is_ok() {
+                AppState::add_last_backup_name_on_error(&full_file_name_uri, bkp_file_name);
+            } else {
+                backup::remove_backup_history_file(&full_file_name_uri, bkp_file_name);
+            }
         }
 
-        r
+        result
     };
     as_api_response(f())
 }
