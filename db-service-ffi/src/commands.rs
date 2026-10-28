@@ -429,8 +429,8 @@ macro_rules! service_call  {
         } else  {
             let fname = stringify!($fn_name);
             let ename = stringify!($enum_name);
-            let error_msg = format!("Invalid command args received {} for the api call {}. Expected a valid CommandArg::{}",
-                                    &$args.clone(),&fname, &ename);
+            let error_msg = format!("Invalid command arguments for {}. Expected CommandArg::{}",
+                                    &fname, &ename);
             return InvokeResult::<()>::with_error(&error_msg.clone()).json_str();
         }
     };
@@ -451,8 +451,8 @@ macro_rules! service_ok_call  {
         } else  {
             let fname = stringify!($fn_name);
             let ename = stringify!($enum_name);
-            let error_msg = format!("Invalid command args received {} for the api call {}. Expected a valid CommandArg::{}",
-                                    &$args.clone(),&fname, &ename);
+            let error_msg = format!("Invalid command arguments for {}. Expected CommandArg::{}",
+                                    &fname, &ename);
             return InvokeResult::<()>::with_error(&error_msg.clone()).json_str();
         }
     };
@@ -465,8 +465,8 @@ macro_rules! service_call_closure {
             return  r;
         } else  {
             let ename = stringify!($enum_name);
-            let error_msg = format!("Invalid command args received {} for the api call. Expected a valid CommandArg::{}",
-                                    &$args.clone(), &ename);
+            let error_msg = format!("Invalid command arguments. Expected CommandArg::{}",
+                                    &ename);
             return InvokeResult::<()>::with_error(&error_msg.clone()).json_str();
         }
     };
@@ -495,8 +495,8 @@ macro_rules! parse_command_args_or_json_error {
         {
             let Ok(CommandArg::$enum_name{$($enum_vals)*}) = serde_json::from_str::<CommandArg>($json_args) else {
                 let ename = stringify!($enum_name);
-                let error_msg = format!("Invalid command args received {} for the api call. Expected a valid CommandArg::{}",
-                                        &$json_args.clone(), &ename);
+                let error_msg = format!("Invalid command arguments. Expected CommandArg::{}",
+                                        &ename);
                 return error_json_str(&error_msg)
             };
             ($($enum_vals)*,)
@@ -512,8 +512,8 @@ macro_rules! parse_command_args_or_err {
         {
             let Ok(CommandArg::$enum_name{$($enum_vals)*}) = serde_json::from_str::<CommandArg>($json_args) else {
                 let ename = stringify!($enum_name);
-                let error_msg = format!("Invalid command args received {} for the api call. Expected a valid CommandArg::{}",
-                                        &$json_args.clone(), &ename);
+                let error_msg = format!("Invalid command arguments. Expected CommandArg::{}",
+                                        &ename);
                 return Err(OkpError::UnexpectedError(error_msg));
                 // return Err(OkpError::UnexpectedError(format!(
                 //     "Unexpected argument {:?} for copy_file_to_app_group api call",
@@ -995,7 +995,7 @@ impl Commands {
 
             // "list_backup_files" => ok_json_str(util::list_backup_files()),
             // "delete_key_file" => Self::delete_key_file(&args),
-            "test_call" => Self::test_call(&args),
+
 
             x => error_json_str(&format!("Invalid command name {} is passed", x)),
         };
@@ -1006,8 +1006,7 @@ impl Commands {
         let inner = || -> OkpResult<CustomIconDataResponse> {
             let CommandArg::DbKeyWithUUIDArg { db_key, uuid } = serde_json::from_str(args)? else {
                 return Err(OkpError::UnexpectedError(format!(
-                    "Unexpected args passed for get_custom_icon_data: {}",
-                    args
+                    "Invalid arguments for get_custom_icon_data"
                 )));
             };
             let data = db_service::get_custom_icon(&db_key, &uuid.to_string())?;
@@ -1021,8 +1020,7 @@ impl Commands {
             let CommandArg::CustomIconAddUrlArg { db_key, url } = serde_json::from_str(args)?
             else {
                 return Err(OkpError::UnexpectedError(format!(
-                    "Unexpected args passed for add_custom_icon_from_url: {}",
-                    args
+                    "Invalid arguments for add_custom_icon_from_url"
                 )));
             };
             // Reuse the core's tokio runtime to drive the async favicon download
@@ -1259,8 +1257,7 @@ impl Commands {
             }
         } else {
             error_json_str(&format!(
-                "Unexpected args passed for prepared_export_kdbx_data {:?}",
-                args
+                "Invalid arguments for prepare_export_kdbx_data"
             ))
         }
     }
@@ -1415,35 +1412,6 @@ impl Commands {
                 Err(OkpError::DataError(""))
             }
         }
-    }
-}
-
-// Just for some testing. Comment out when testing is done
-impl Commands {
-    fn test_call(json_args: &str) -> ResponseJson {
-        //let r = ApiCallbacksStore::common_device_service_ex().test_secure_store();
-        //debug!("Fn test_secure_store called and r is {:?}",&r);
-
-        let inner_fn = || -> OkpResult<()> {
-            let (key_vals,) = parse_command_args_or_err!(json_args, GenericArg { key_vals });
-            let (Some(id), Some(test_data)) =
-                (key_vals.get("identifier"), key_vals.get("test_data"))
-            else {
-                return Err(OkpError::DataError("Valid key is not found in args"));
-            };
-
-            let encrypted_data = AppState::secure_enclave_cb_service()
-                .encrypt_bytes(id.clone(), test_data.as_bytes().to_vec())?;
-            let dd =
-                AppState::secure_enclave_cb_service().decrypt_bytes(id.clone(), encrypted_data)?;
-
-            debug!("Decrypted text is {}", String::from_utf8_lossy(&dd));
-
-            Ok(())
-        };
-
-        result_json_str(inner_fn())
-        //ok_json_str("Done".to_string())
     }
 }
 
