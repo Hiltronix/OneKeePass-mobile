@@ -12,6 +12,7 @@ mod file_util;
 mod ios;
 mod key_secure;
 mod db_backup_read;
+#[cfg(target_os = "ios")]
 mod remote_storage;
 mod util;
 
