@@ -34,9 +34,6 @@
                                                   SETTINGS_KDF_PAGE_ID
                                                   SETTINGS_PAGE_ID
                                                   SETTINGS_SECURITY_PAGE_ID
-                                                  RS_CONNECTION_CONFIG_PAGE_ID
-                                                  RS_CONNECTIONS_LIST_PAGE_ID
-                                                  RS_FILES_FOLDERS_PAGE_ID]]
             [onekeepass.mobile.entry-category :refer [entry-category-content]]
             [onekeepass.mobile.entry-form :as entry-form]
             [onekeepass.mobile.entry-history-list :as entry-history-list]
@@ -46,10 +43,8 @@
             [onekeepass.mobile.events.common :as cmn-events]
             [onekeepass.mobile.events.entry-form :as ef-events]
             [onekeepass.mobile.events.entry-list :as elist-events]
-            [onekeepass.mobile.events.external-db-change :as ext-change-events]
             [onekeepass.mobile.events.merging :as merging-events]
             [onekeepass.mobile.events.password-generator :as pg-events]
-            [onekeepass.mobile.events.remote-storage :as rs-events]
             [onekeepass.mobile.events.settings :as stgs-events]
             [onekeepass.mobile.group-form :as group-form]
             [onekeepass.mobile.icons-list :as icons-list]
@@ -74,9 +69,6 @@
                                                              rnp-menu-item
                                                              rnp-text
                                                              rnp-touchable-ripple]]
-            [onekeepass.mobile.rs-config-form :as rs-form]
-            [onekeepass.mobile.rs-configs :as rs-configs]
-            [onekeepass.mobile.rs-files-folders :as rs-files-folders]
             [onekeepass.mobile.scan-otp-qr :as scan-otp-qr]
             [onekeepass.mobile.search :as search]
             [onekeepass.mobile.settings :as settings :refer [db-settings-form-content]]
@@ -107,10 +99,6 @@
       (elist-events/entry-list-back-action)
       true)
 
-    (= page RS_FILES_FOLDERS_PAGE_ID)
-    (do (rs-events/remote-storage-listing-previous)
-        true)
-
     (= page MERGE_DATABASE_PAGE_ID)
     (do (merging-events/merge-database-back-action)
         true)
@@ -130,8 +118,6 @@
      (= page CAMERA_SCANNER_PAGE_ID)
      (= page ABOUT_PAGE_ID)
      (= page PRIVACY_POLICY_PAGE_ID)
-     (= page RS_CONNECTION_CONFIG_PAGE_ID)
-     (= page RS_CONNECTIONS_LIST_PAGE_ID)
      (= page ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID)
      (= page APP_LOCK_SETTINGS_PAGE_ID)
      (= page MANAGE_CUSTOM_ICONS_PAGE_ID)
@@ -328,9 +314,6 @@
                                  (is-settings-page page)
                                  (r/as-element [settings/appbar-title page])
 
-                                 (= page RS_CONNECTIONS_LIST_PAGE_ID)
-                                 (r/as-element [rs-configs/appbar-title])
-
                                  (= page PASSKEY_PENDING_REVIEW_PAGE_ID)
                                  (r/as-element [passkey-pending/appbar-title])
 
@@ -358,7 +341,6 @@
 
 (def page-id-based-title-providers [ENTRY_FORM_PAGE_ID
                                     PASSWORD_GENERATOR_PAGE_ID
-                                    RS_CONNECTIONS_LIST_PAGE_ID
                                     PASSKEY_PENDING_REVIEW_PAGE_ID])
 
 (def title-provider-pages [HOME_PAGE_ID
@@ -375,8 +357,6 @@
                            ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID
                            APP_LOCK_SETTINGS_PAGE_ID
                            MANAGE_CUSTOM_ICONS_PAGE_ID
-                           RS_CONNECTION_CONFIG_PAGE_ID
-                           RS_FILES_FOLDERS_PAGE_ID
                            MERGE_DATABASE_PAGE_ID])
 
 (defn- appbar-title [{:keys [page title]}]
@@ -456,7 +436,6 @@
                         APP_LOCK_SETTINGS_PAGE_ID
                         CAMERA_SCANNER_PAGE_ID
                         MANAGE_CUSTOM_ICONS_PAGE_ID
-                        RS_CONNECTION_CONFIG_PAGE_ID
                         KEY_FILE_FORM_PAGE_ID
                         MERGE_DATABASE_PAGE_ID])
 
@@ -475,10 +454,6 @@
        [rnp-appbar-back-action {:style {}
                                 :color @background-color
                                 :onPress (fn [] (elist-events/entry-list-back-action))}]
-
-       (= page RS_FILES_FOLDERS_PAGE_ID)
-       [rnp-appbar-back-action {:color @background-color
-                                :onPress rs-events/remote-storage-listing-previous}]
 
        (= page MERGE_DATABASE_PAGE_ID)
        [rnp-appbar-back-action {:color @background-color
@@ -570,15 +545,6 @@
 
     (= page CAMERA_SCANNER_PAGE_ID)
     (scan-otp-qr/content)
-
-    (= page RS_CONNECTIONS_LIST_PAGE_ID)
-    [rs-configs/remote-connections-list-page-content]
-
-    (= page RS_CONNECTION_CONFIG_PAGE_ID)
-    [rs-form/connection-config-form]
-
-    (= page RS_FILES_FOLDERS_PAGE_ID)
-    [rs-files-folders/dir-entries-content]
 
     (= page ADDITIONAL_DATABASE_ACCESS_SETTINGS_PAGE_ID)
     [app-db-settings/content]
