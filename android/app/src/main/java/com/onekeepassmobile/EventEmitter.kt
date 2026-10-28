@@ -56,7 +56,6 @@ object EventEmitter {
         var uri = intentOfOnCreate?.action?.let {
             if (it == "android.intent.action.VIEW") {
                 var uri = intentOfOnCreate?.data
-                Log.d(TAG, "EventEmitter onApplicationOpenURL Uri received ${uri}")
                 uri
             } else {
                 null
@@ -125,11 +124,9 @@ object EventEmitter {
         intentOfOnCreate?.action?.let {
             if (it == "android.intent.action.VIEW") {
                 var uri = intentOfOnCreate?.data
-                Log.d(TAG, "EventEmitter onCreate Uri received ${uri}")
                 if (uri != null) {
                     reactApplicationContext.getJSModule(RCTDeviceEventEmitter::class.java)
                             .emit("onApplicationOpenURL", DbServiceAPI.formJsonWithFileName(uri.toString()))
-                    Log.d(TAG, "EventEmitter onCreateIntent Uri received ${uri} sent by emitting....")
                 }
             }
         }
@@ -144,7 +141,6 @@ object EventEmitter {
         if (otpAuthUri(intent) != null) {
             Log.d(TAG, "In EventEmitter onCreateIntent Received an otpauth intent")
         } else {
-            Log.d(TAG, "In EventEmitter onCreateIntent Received intent $intent with ${intent.action}")
         }
 
         // Initially tried to use 'emitKdbxUriToOpenEvent'
@@ -173,15 +169,12 @@ object EventEmitter {
             return
         }
 
-        Log.d(TAG, "In EventEmitter onNewIntent Received intent $intent with ${intent.action}")
         intent.action?.let {
             if (it == "android.intent.action.VIEW") {
                 var uri = intent?.data
-                Log.d(TAG, "EventEmitter onNewIntent Uri received ${uri}")
                 if (uri != null) {
                     reactApplicationContext.getJSModule(RCTDeviceEventEmitter::class.java)
                             .emit("onApplicationOpenURL", DbServiceAPI.formJsonWithFileName(uri.toString()))
-                    Log.d(TAG, "EventEmitter onNewIntent Uri received ${uri} sent by emitting....")
                 }
             }
         }
