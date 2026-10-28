@@ -119,7 +119,7 @@ object PasskeyRequestStore {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "storeAssertionContext parse error", e)
+            Log.e(TAG, "storeAssertionContext parse error")
         }
     }
 
@@ -181,7 +181,7 @@ object PasskeyRequestStore {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "storeRegistrationContext parse error", e)
+            Log.e(TAG, "storeRegistrationContext parse error")
         }
     }
 
