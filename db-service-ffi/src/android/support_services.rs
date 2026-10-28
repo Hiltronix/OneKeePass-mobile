@@ -118,31 +118,46 @@ impl AndroidSupportServiceExtra {
                 // The last modified db is written to the 'bkp_file_name'
                 let mut modified_bk_file_reader = File::open(bkp_file_name)?;
 
-                // Writes the modified db data to the new the file selected by the user
-                std::io::copy(&mut modified_bk_file_reader, &mut file)?;
-                // sync_all ensures the file is created and synced in case of dropbbox and one drive
-                let _ = file.sync_all();
+                let expected_len = modified_bk_file_reader.metadata()?.len();
+                if expected_len < 8 {
+                    return Err(OkpError::DataError("Recovery KDBX backup is incomplete"));
+                }
+
+                // Do not change the active database key until both the new provider
+                // document and its local encrypted backup have been fully synchronized.
+                let copied = std::io::copy(&mut modified_bk_file_reader, &mut file)?;
+                if copied != expected_len {
+                    return Err(OkpError::DataError("Incomplete recovery KDBX write"));
+                }
+                file.sync_all()?;
+
+                let backup_path = backup::generate_backup_history_file_name(
+                    &new_full_file_name_uri,
+                    &file_name,
+                ).ok_or(OkpError::DataError("Recovery backup filename is invalid"))?;
+                let pending_path = format!("{backup_path}.partial");
+                let mut new_db_bk_file = open_backup_file(Some(&pending_path))
+                    .ok_or(OkpError::DataError("Recovery backup could not be created"))?;
+
+                modified_bk_file_reader.rewind()?;
+                let backup_bytes = std::io::copy(&mut modified_bk_file_reader, &mut new_db_bk_file)?;
+                if backup_bytes != expected_len {
+                    return Err(OkpError::DataError("Incomplete recovery backup copy"));
+                }
+                new_db_bk_file.sync_all()?;
+                drop(new_db_bk_file);
+                std::fs::rename(&pending_path, &backup_path)?;
 
                 let kdbx_loaded =
                     db_service::rename_db_key(&old_full_file_name_uri, &new_full_file_name_uri)?;
 
-                // Need to set the checksum for the newly saved file and checksum is calculated using the backup file itself
-                // as using the newly written 'file' from 'file_descriptor' fails
+                // Use the encrypted recovery snapshot for the checksum because some
+                // Android document providers cannot reread the destination descriptor.
                 modified_bk_file_reader.rewind()?;
                 db_service::calculate_and_set_db_file_checksum(
                     &new_full_file_name_uri,
                     &mut modified_bk_file_reader,
                 )?;
-
-                // Need to create the backup file for the newly created database
-                let mut new_db_bk_file =
-                    backup::generate_and_open_backup_file(&new_full_file_name_uri, &file_name)?;
-
-                modified_bk_file_reader.rewind()?;
-
-                // Copies data from the latest modification of old db that we could not save to the new db's backup
-                std::io::copy(&mut modified_bk_file_reader, &mut new_db_bk_file)?;
-                let _ = new_db_bk_file.sync_all();
 
                 // For now we remove all reference of the db file that failed to save
                 remove_app_files(&old_full_file_name_uri);
