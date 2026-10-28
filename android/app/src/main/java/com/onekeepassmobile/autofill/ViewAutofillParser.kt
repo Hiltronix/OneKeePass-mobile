@@ -111,7 +111,7 @@ object ViewAutofillParser {
             }
         }
 
-        Log.d(TAG, "The fillableLogin with values are $fillableLogin")
+
     }
 
     //// AssistStructure extension
