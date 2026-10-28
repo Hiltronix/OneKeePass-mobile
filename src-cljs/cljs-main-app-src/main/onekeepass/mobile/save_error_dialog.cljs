@@ -74,14 +74,6 @@
 
      [rnp-divider]
      [rn-view {:style {:flex 00.70}}
-         [rn-view {:style {:margin-top 10 :margin-bottom 10 :align-items "center"}}
-          [rnp-button {:style {:width "50%"}
-                       :labelStyle {:fontWeight "bold"}
-                       :mode "text"
-                       :on-press save-events/merge-on-save-error} (lstr-bl "merge")]
-          [rnp-text {:style {:textAlign "justify"}}
-           (lstr-modal-dlg-text 'mergeExternalChangesDesc)]]
-         [rnp-divider]])
 
       [rn-view {:style {:margin-top 10 :margin-bottom 10 :align-items "center"}}
        [rnp-button {:style {:width "50%"}
