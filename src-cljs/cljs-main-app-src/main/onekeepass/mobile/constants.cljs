@@ -154,10 +154,6 @@
 (def OTP_URL_PREFIX "otpauth://totp")
 
 ;; 'granted' | 'not-determined' | 'denied' | 'restricted'
-(def CAMERA_PERMISSION_GRANTED "granted")
-(def CAMERA_PERMISSION_DENIED "denied")
-(def CAMERA_PERMISSION_NOT_DETERMINED "not-determined")
-(def CAMERA_PERMISSION_RESTRICTED "restricted")
 
 
 ;;;;;;;;;;;;;;;;;;;;   Page ids ;;;;;;;;;;;;;;;;;;;;
@@ -168,7 +164,7 @@
 (def APP_SETTINGS_PAGE_ID :app-settings)
 (def AUTOFILL_SETTINGS_PAGE_ID :autofill-settings)
 (def BLANK_PAGE_ID :blank)
-(def CAMERA_SCANNER_PAGE_ID :scan-otp-qr)
+
 (def ENTRY_CATEGORY_PAGE_ID :entry-category)
 (def ENTRY_FORM_PAGE_ID :entry-form)
 (def ENTRY_HISTORY_LIST_PAGE_ID :entry-history-list)
