@@ -23,7 +23,7 @@ class DocumentPickerServiceModule(reactContext: ReactApplicationContext) : React
     private val activityEventListener =
             object : BaseActivityEventListener() {
                 override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, intent: Intent?) {
-                    Log.d(TAG, "requestCode code is $requestCode resultCode $resultCode intent $intent for activity $activity")
+
                     when (requestCode) {
 
                         PICK_DIR_REQUEST_CODE -> {
@@ -314,9 +314,9 @@ class DocumentPickerServiceModule(reactContext: ReactApplicationContext) : React
      *
      */
     fun saveKeyFile(pickedFullFileNameUri:String,localKeyFileFullName:String, promise:Promise) {
-        Log.i(TAG, "Received fullFileName is $pickedFullFileNameUri")
+
         val uri = Uri.parse(pickedFullFileNameUri);
-        Log.i(TAG, "Parsed uri is $uri")
+
         try {
             // Here it is assumed the fileNameUri starts with content:// for which there will be
             // a resolver. If we use internal file path, we need to do something similar to readKdbx
