@@ -30,12 +30,6 @@
 (defn-generic-dialog-subs-events confirm-delete-otp-field-dialog [[data nil]])
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  setup-otp-action-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn-generic-dialog-disp-events setup-otp-action-dialog  [[show nil] [close nil] [show-with-state state-m]])
-
-(defn-generic-dialog-subs-events setup-otp-action-dialog [[data nil]])
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  otp-settings-dialog    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; fields-value is a vector of [kws-v value] [[:data :some-field] value] or [:some-field value]
@@ -333,7 +327,7 @@
   [db]
   (let [{:keys [secret-or-url standard-field field-name code-entry-type]} (get-in db [:otp-settings-dialog])]
     (cond-> {}
-      (and (= code-entry-type :manual) (nil? secret-or-url))
+      (nil? secret-or-url)
       (assoc :secret-or-url "A valid value is required for secret code")
 
       (and (not standard-field) (nil? field-name))
@@ -354,21 +348,14 @@
                       #(dispatch [:otp-settings-form-url-error %]))]
     (dispatch [:otp-settings-form-url-success opt-url])))
 
-(defn manual-or-scan-qr-dispatch [section-name field-name standard-field secret-or-url code-entry-type]
-  (if (= code-entry-type :manual)
-    [[:entry-form/bg-form-otp-url [{:secret-or-url secret-or-url} callback-on-form-otp-url]]]
-    [[:scan-qr/initiate-scan-qr (as-map [section-name field-name standard-field])]
-     [:dispatch [:generic-dialog-close :otp-settings-dialog]]]))
-
 (reg-event-fx
  :otp-settings-dialog-complete-ok
  (fn [{:keys [db]} [_event-id]]
    (let [errors (validate-otp-settings-fields db)
          errors-found (boolean (seq errors))
-         {:keys [section-name field-name standard-field secret-or-url code-entry-type]} (get-in db [:otp-settings-dialog])
+         {:keys [section-name field-name standard-field secret-or-url]} (get-in db [:otp-settings-dialog])
          dispatch-events (when-not errors-found
-                           (manual-or-scan-qr-dispatch
-                            section-name field-name standard-field secret-or-url code-entry-type))]
+                           [[:entry-form/bg-form-otp-url [{:secret-or-url secret-or-url} callback-on-form-otp-url]]])]
      (if errors-found
        {:db (assoc-in db [:otp-settings-dialog :error-fields] errors)
         :fx []}
