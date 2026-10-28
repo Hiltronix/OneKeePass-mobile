@@ -19,7 +19,7 @@
    ["react-native-safe-area-context" :as sa-context]
    ["@react-native-vector-icons/material-design-icons"]
    #_["react-native-vector-icons" :as vec-icons]
-   ["react-native-vision-camera" :as rn-vision-camera]
+
    ;; Local js components. 
    ;; Note the use of path relative to cljs-main-app-src/src/gen
    ;; which is included in the :source-paths in shadow-cljs.edn
@@ -466,19 +466,6 @@
   [handler-fns-m]
   ;; handler-fns-m is clojure map and PanResponder expects a js object
   (.create rn/PanResponder (clj->js handler-fns-m)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; react-native-vision-camera - VisionCamera  ;;;;;;;;;;
-
-;; https://react-native-vision-camera.com/docs/api/#usecamerapermission
-;; https://github.com/mrousavy/react-native-vision-camera/blob/main/package/src/hooks/useCameraPermission.ts 
-
-(def use-camera-permission (.-useCameraPermission ^js/RNVisionCamera rn-vision-camera))
-
-(def use-camera-device (.-useCameraDevice ^js/RNVisionCamera rn-vision-camera))
-
-(def use-code-scanner (.-useCodeScanner ^js/RNVisionCamera rn-vision-camera))
-
-(def camera (r/adapt-react-class (.-Camera ^js/RNVisionCamera rn-vision-camera)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; react-native-circular-progress ;;;;;;;;;;;;;;;;;;;;
 
