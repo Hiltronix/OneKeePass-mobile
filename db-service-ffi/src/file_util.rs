@@ -69,6 +69,7 @@ impl OpenedFile {
     }
 }
 
+#[cfg(target_os = "ios")]
 #[enum_dispatch::enum_dispatch(PickedFileHandler)]
 pub trait HandlePickedFile {
     fn execute(&self, file_args: &FileArgs) -> OkpResult<KeyFileInfo>;
@@ -76,6 +77,7 @@ pub trait HandlePickedFile {
 
 // Json string {\"handler\" : \"SftpPrivateKeyFile\"} deserializes to variant PickedFileHandler::SftpPrivateKeyFile
 
+#[cfg(target_os = "ios")]
 #[derive(Deserialize,Debug)]
 #[serde(tag = "handler")] 
 #[enum_dispatch::enum_dispatch]
@@ -91,9 +93,11 @@ pub enum PickedFileHandler {
     // EntryAttachmentFile(EntryAttachmentFile),
 }
 
+#[cfg(target_os = "ios")]
 #[derive(Deserialize,Debug)]
 pub struct SftpPrivateKeyFile {}
 
+#[cfg(target_os = "ios")]
 impl HandlePickedFile for SftpPrivateKeyFile {
     fn execute(&self, file_args: &FileArgs) -> OkpResult<KeyFileInfo> {
         let OpenedFile {
