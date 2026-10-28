@@ -25,7 +25,6 @@
                                                           otp-settings-dialog
                                                           rename-attachment-name-dialog
                                                           rename-attachment-name-dialog-data
-                                                          setup-otp-action-dialog
                                                           setup-otp-action-dialog-show]]
             [onekeepass.mobile.entry-form-fields :as ef-fields :refer [bool-field date-field
                                                                        otp-field text-field]]
@@ -819,7 +818,7 @@
       [history-entry-delete-dialog]
       [history-entry-restore-dialog]
       [confirm-delete-otp-field-dialog]
-      [setup-otp-action-dialog]
+
       [otp-settings-dialog @(dlg-events/otp-settings-dialog-data)]
       (:dialog delete-attachment-dialog-info)
       [rename-attachment-name-dialog @rename-attachment-name-dialog-data]
