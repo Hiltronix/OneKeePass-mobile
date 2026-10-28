@@ -15,11 +15,14 @@ use crate::{
         AppLockPreference, DatabasePreference, Preference, PreferenceData, RecentlyUsed,
         PREFERENCE_JSON_FILE_NAME,
     },
-    backup, remote_storage,
+    backup,
     udl_types::SecureKeyOperation,
     udl_uniffi_exports::{CommonDeviceServiceEx, SecureEnclaveCbService},
     util,
 };
+#[cfg(target_os = "ios")]
+use crate::remote_storage;
+
 use crate::{
     udl_types::{CommonDeviceService, EventDispatch, FileInfo},
     OkpError, OkpResult,
@@ -31,8 +34,10 @@ pub(crate) const BACKUPS_DIR: &str = "backups";
 
 pub(crate) const BACKUPS_HIST_DIR: &str = "history";
 
+#[cfg(target_os = "ios")]
 pub(crate) const REMOTE_STORAGE_DIR: &str = "remote_storage";
 
+#[cfg(target_os = "ios")]
 pub(crate) const REMOTE_STORAGE_SFTP_SUB_DIR: &str = "sftp";
 
 pub(crate) const OKP_SHARED_DIR: &str = "okp_shared";
@@ -69,6 +74,7 @@ pub struct AppState {
     backup_history_dir_path: PathBuf,
 
     // Dir path where all remote storage related files are stored
+    #[cfg(target_os = "ios")]
     remote_storage_path: PathBuf,
 
     // Dir path where db file for export is created and used in export calls
@@ -156,9 +162,12 @@ impl AppState {
         let key_files_dir_path = Self::form_key_file_path(&app_dir, &app_group_home_dir);
         log::debug!("key_files_dir_path is {:?}", &key_files_dir_path);
 
-        // All remote storage related dirs
-        let remote_storage_path = util::create_sub_dir(&app_dir, REMOTE_STORAGE_DIR);
-        util::create_sub_dir_path(&remote_storage_path, REMOTE_STORAGE_SFTP_SUB_DIR);
+        #[cfg(target_os = "ios")]
+        let remote_storage_path = {
+            let path = util::create_sub_dir(&app_dir, REMOTE_STORAGE_DIR);
+            util::create_sub_dir_path(&path, REMOTE_STORAGE_SFTP_SUB_DIR);
+            path
+        };
 
         // As we started storing backup files to the folder 'backups/history' since 0.15.0 rlease
         // we remove the old backup files
@@ -184,6 +193,7 @@ impl AppState {
             cache_dir,
             temp_dir,
             backup_history_dir_path,
+            #[cfg(target_os = "ios")]
             remote_storage_path,
             export_data_dir_path,
             key_files_dir_path,
@@ -324,6 +334,7 @@ impl AppState {
         &Self::shared().backup_history_dir_path
     }
 
+    #[cfg(target_os = "ios")]
     pub fn remote_storage_path() -> &'static PathBuf {
         &Self::shared().remote_storage_path
     }
@@ -337,6 +348,7 @@ impl AppState {
     }
 
     // Root dir where all the private key files of one or more SFTP connections are stored
+    #[cfg(target_os = "ios")]
     pub fn sftp_private_keys_path() -> PathBuf {
         // Sub dir "sftp" should exist
         let p = Self::shared()
@@ -430,6 +442,7 @@ impl AppState {
     // The uri may start with file: or content: or Sftp or WebDav
     pub fn uri_to_file_name(full_file_name_uri: &str) -> String {
         // Need to find out whether this is a remote storage db_key and then find the file name accordingly
+        #[cfg(target_os = "ios")]
         if let Some(s) = remote_storage::uri_to_file_name(full_file_name_uri) {
             return s.to_string();
         }
@@ -444,10 +457,13 @@ impl AppState {
 
     pub fn uri_to_file_info(full_file_name_uri: &str) -> Option<FileInfo> {
         // First we attempt to see whether the 'full_file_name_uri' is meant fo the remote storage 'Sftp' or 'Webdav'
-        let info = remote_storage::uri_to_file_info(full_file_name_uri);
-        if info.is_some() {
-            debug!("Returning RS file info {:?}", &info);
-            return info;
+        #[cfg(target_os = "ios")]
+        {
+            let info = remote_storage::uri_to_file_info(full_file_name_uri);
+            if info.is_some() {
+                debug!("Returning RS file info {:?}", &info);
+                return info;
+            }
         }
 
         // Uses the iOS or Android service to get the file info as the 'full_file_name_uri' is from
