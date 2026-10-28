@@ -3,7 +3,7 @@
   (:require
    ["@react-native-clipboard/clipboard" :as rnc-clipboard]
    ["react-native-file-viewer" :as native-file-viewer]
-   ["react-native-vision-camera" :as rn-vision-camera]
+
    [camel-snake-kebab.core :as csk]
    [camel-snake-kebab.extras :as cske]
    [clojure.string :as str]
@@ -836,80 +836,6 @@
   "The arg 'otp-settings' is map with secret-or-url,  eg {:secret-or-url \"base32secret3232\"}"
   [otp-settings dispatch-fn]
   (invoke-api "form_otp_url" {:otp-settings otp-settings} dispatch-fn :convert-request true))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  Camera static methods calls ;;;;;;;;;;;
-
-;; Reagent component 'camera' from 'react-native-vision-camera - VisionCamera' is defined in 'rn-components.cljs'
-
-;; Need to use (js/Object.getOwnPropertyNames camera-obj) in repl to find all static methods 
-;; defined in 'Camera'
-(def camera-obj (.-Camera ^js/RNVisionCamera rn-vision-camera))
-
-(defn camera-permission-status
-  "
-  Returns one of 'granted' | 'not-determined' | 'denied' | 'restricted'
-
-  not-determined: Your app has not yet requested permission from the user. Continue by calling the request functions.
-
-  denied: Your app has already requested permissions from the user, but was explicitly denied. 
-  You cannot use the request functions again, 
-  but you can use the Linking API to redirect the user to the Settings App where he can manually grant the permission.
-
-  restricted: Your app cannot use the Camera or Microphone because that 
-  functionality has been restricted, possibly due to active restrictions such as parental controls being in place
-  "
-  []
-  (.getCameraPermissionStatus camera-obj))
-
-;; See https://react-native-vision-camera.com/docs/api/classes/Camera#requestcamerapermission
-;; https://react-native-vision-camera.com/docs/guides#requesting-permissions
-(defn request-camera-permission
-  "The static method .requestCameraPermission returns a promise and it is resolved in call-api-async
-  
-  By using :no-response-conversion, the resolved value is returned as {:ok resolved-value}
-  The resolved value is either 'granted' or 'denied' 
-  
-  granted: The app is authorized to use said permission. Continue with using the <Camera> view.
-
-  denied: The user explicitly denied the permission request alert. 
-  You cannot use the request functions again, but you can use 
-  the Linking API to redirect the user to the Settings App where he can manually grant the permission.
-
-  restricted: The app cannot use the Camera or Microphone because that functionality has been restricted, 
-  possibly due to active restrictions such as parental controls being in place
-  "
-  [dispatch-fn]
-  (call-api-async (fn [] (.requestCameraPermission camera-obj)) dispatch-fn :no-response-conversion true))
-
-(defn available-cameras
-  "Returns a list of all available camera devices on the current phone"
-  []
-  (-> (.getAvailableCameraDevices camera-obj) js->clj))
-
-;; Used for Android FOSS release only
-;;
-;; vision-camera v5 uses Nitro modules and no longer registers a legacy 'CameraView'
-;; native module in rn/NativeModules (that was the v3 mechanism). So the old
-;; nil-check on NativeModules.CameraView reported "disabled" for ALL builds
-;; (iOS / Play Store included) after the v3 -> v5 upgrade - a regression.
-;;
-;; Instead we detect the fully-FOSS build directly: such APK builds swap the
-;; vision-camera JS module for a local stub (see metro.config.js and
-;; foss-stubs/react-native-vision-camera.js) that exports the '__okpFossCameraStub'
-;; marker. The real package never exports it, so iOS and Android Play Store builds
-;; keep the camera / QR-scan UI enabled.
-(def camera-foss-stub? (.-__okpFossCameraStub ^js/RNVisionCamera rn-vision-camera))
-
-(defn is-rn-native-camera-vison-disabled
-  "Returns true only for the fully-FOSS Android APK build, where
-  react-native-vision-camera is replaced by a JS stub (see metro.config.js) and its
-  native module is excluded (see react-native.config.js). iOS and Android Play Store
-  builds return false so the camera / QR-scan UI stays enabled.
-  https://developers.google.com/ml-kit/
-  https://firebase.google.com/
-   "
-  []
-  (boolean camera-foss-stub?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Native Events ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; While compiling with advanced option, if we use '(u/is-iOS)' to check platform
