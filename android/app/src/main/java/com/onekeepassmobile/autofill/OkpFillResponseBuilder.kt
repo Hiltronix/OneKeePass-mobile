@@ -37,7 +37,7 @@ object OkpFillResponseBuilder {
 
         return if (parsedAutofillRequest != null) {
             parsedAutofillRequestToUse = parsedAutofillRequest
-            Log.d(TAG,"parsedAutofillRequestToUse is set $parsedAutofillRequestToUse")
+
             val data = buildDataSet(packageContext, parsedAutofillRequest)
             fillResponseBuilder
                     .setIgnoredIds(*parsedAutofillRequest.ignoreAutofillIds.toTypedArray())
@@ -69,7 +69,7 @@ object OkpFillResponseBuilder {
     }
 
     fun callingAppUri(): String? {
-        Log.d(TAG,"Returning uri from parsedAutofillRequestToUse $parsedAutofillRequestToUse")
+
         return parsedAutofillRequestToUse?.uri
     }
 
@@ -156,7 +156,7 @@ object OkpFillResponseBuilder {
 
         var builder = Dataset.Builder(authPresentation).setAuthentication(intentSender)
 
-        Log.d(TAG, "parsedAutofillRequest.parsedRequestDataSet is $parsedAutofillRequest.parsedRequestDataSet")
+
 
         val maxInlineSuggestionsCount = (parsedAutofillRequest.maxInlineSuggestionsCount - 1).coerceAtMost(maximumValue = 5)
 
