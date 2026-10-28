@@ -44,8 +44,9 @@ pub(crate) fn invoke_command(command_name: String, args: String) -> String {
 
 // Called from Swift/Kotlin side onetime  - See db_service.udl
 pub(crate) fn db_service_enable_logging() {
-    #[cfg(target_os = "android")]
+    #[cfg(all(target_os = "android", debug_assertions))]
     {
+        // Production Android builds must not register a Rust logger.
         // Use "db_service_ffi" in Android Studio's Logcat to see all logs from this crate
 
         // if we use "tag:DbServiceFFI" in Logcat, we will see all logs from this crate and
