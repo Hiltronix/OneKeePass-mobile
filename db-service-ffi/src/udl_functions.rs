@@ -358,6 +358,10 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                     let rewind_r = bf_writer.sync_all().and(bf_writer.rewind());
                     log::debug!("Syncing and rewinding of backup file result {:?}", rewind_r);
                     if let Err(e) = rewind_r {
+                        drop(bf_writer);
+                        if let Some(path) = backup_file_name.as_deref() {
+                            backup::remove_backup_history_file(&db_key, path);
+                        }
                         return_api_response_failure!(e)
                     }
                     // Call verify checksum here using writer "db_service::verify_db_file_checksum"
@@ -412,7 +416,13 @@ pub(crate) fn save_kdbx(file_args: FileArgs, overwrite: bool) -> ApiResponse {
                     }
                     kdbx_saved
                 }
-                Err(e) => return_api_response_failure!(e),
+                Err(e) => {
+                    drop(bf_writer);
+                    if let Some(path) = backup_file_name.as_deref() {
+                        backup::remove_backup_history_file(&db_key, path);
+                    }
+                    return_api_response_failure!(e)
+                },
             }
         }
         None => {
