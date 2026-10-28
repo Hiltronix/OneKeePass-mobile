@@ -49,7 +49,7 @@ cfg-if = "1.0"
 ## onekeepass-core = {path = "../../onekeepass-core", version = "0.25.0" , features = ["favicon"]}
 
 ## Need to use the git ref for release
-onekeepass-core = {git = "https://github.com/Hiltronix/OneKeePass-onekeepass-core.git" , rev = "1e57070fe7ca0c7d3ae4fb6fe38cc9ebbca95da5", features = ["favicon"] }
+onekeepass-core = {git = "https://github.com/Hiltronix/OneKeePass-onekeepass-core.git" , rev = "26a8149a0e98304e73937de36a6a217cc9359fe5", features = ["favicon"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.13.1"
