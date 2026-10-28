@@ -570,6 +570,17 @@ impl Commands {
             return InvokeResult::<()>::with_error("Command name is empty").json_str();
         }
 
+        // The Android release is an offline password manager. Keep local
+        // KDBX operations, attachments, OTP, Autofill and passkeys functional,
+        // but never invoke built-in SFTP/WebDAV or favicon HTTP code.
+        // Debug builds retain the original code paths for maintainability.
+        #[cfg(all(target_os = "android", not(debug_assertions)))]
+        if command_name.starts_with("rs_") || command_name == "add_custom_icon_from_url" {
+            return InvokeResult::<()>::with_error(
+                "Network commands are disabled in the Hiltronix Android release"
+            ).json_str();
+        }
+
         let r = match command_name.as_str() {
             "new_entry_form_data" => {
                 db_service_call!(args,NewEntryArg{db_key,entry_type_uuid,parent_group_uuid} =>
