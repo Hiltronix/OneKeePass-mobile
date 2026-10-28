@@ -227,7 +227,7 @@ jobs:
           text = Path(__import__("os").environ["RUNNER_TEMP"], "android-rust-dependencies.txt").read_text()
           forbidden = ("russh", "russh-sftp", "reqwest_dav", "reqwest", "hyper", "webpki-roots")
           found = [name for name in forbidden if re.search(
-              rf"(?m)^{re.escape(name)} v\\d", text)]
+              rf"(?m)^{re.escape(name)} v[0-9]", text)]
           if found:
               raise SystemExit("Offline Android still compiles network dependencies: " + ", ".join(found))
           print("PASS: Android compiled dependency tree excludes SSH, WebDAV and HTTP clients")
