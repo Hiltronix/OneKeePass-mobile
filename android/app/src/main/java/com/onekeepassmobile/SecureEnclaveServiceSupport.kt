@@ -24,7 +24,6 @@ class SecureEnclaveServiceSupport(val reactContext: ReactApplicationContext) :
 
     override fun encryptBytes(identifier: String, plainData: ByteArray): ByteArray {
         try {
-            Log.d(TAG, "Received data and size is ${plainData.size}")
 
             // Need to create or get an existing key for this alias
             val key = getKey(identifier)
@@ -52,23 +51,18 @@ class SecureEnclaveServiceSupport(val reactContext: ReactApplicationContext) :
             //Log.d(TAG, "Cipher init done for encryption and Iv size is ${iv.size}, " + " blocksize ${cipher.blockSize}, " +" parameters ${cipher.parameters}")
 
             var outData = cipher.doFinal(plainData)
-            Log.d(TAG, "Data encrypted and size is ${outData.size}")
 
             // We prefix the iv wit the encrypted data
             outData = iv + outData
-            Log.d(TAG, "Iv + Data encrypted and size is ${outData.size}")
 
             return outData
         } catch (e: Exception) {
-            e.printStackTrace()
-            Log.d(TAG, "Exception in encryptBytes  $e")
             throw e
         }
     }
 
     override fun decryptBytes(identifier: String, encryptedData: ByteArray): ByteArray {
         try {
-            Log.d(TAG, "Received data (encrypted) and size is ${encryptedData.size}")
             val key = getKey(identifier)
 
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -85,28 +79,21 @@ class SecureEnclaveServiceSupport(val reactContext: ReactApplicationContext) :
             // Decrypt the data
             val outData = cipher.doFinal(dataPart)
 
-            Log.d(TAG, "Data encrytped and size is ${outData.size}")
 
             return outData
 
         } catch (e: Exception) {
-            e.printStackTrace()
-            Log.d(TAG, "Exception in decryptBytes $e")
             throw e
         }
     }
 
     override fun removeKey(identifier: String): Boolean {
         try {
-            Log.d(TAG, "In removeKey going to get AndroidKeyStore instance")
             val keyStore = KeyStore.getInstance("AndroidKeyStore")
             keyStore.load(null)
-            Log.d(TAG, "Deleting identifier $identifier from key store")
             keyStore.deleteEntry(identifier)
             return true
         } catch (e: Exception) {
-            e.printStackTrace()
-            Log.d(TAG, "Exception in removeKey $e")
             throw e
         }
     }
@@ -139,23 +126,18 @@ class SecureEnclaveServiceSupport(val reactContext: ReactApplicationContext) :
                 )
                 val key = keyGenerator.generateKey()
 
-                Log.d(TAG, "Returning newly created key $key")
 
                 return key
             } else {
-                Log.d(TAG, "The alias $identifierAsAlias is found and getting the AndroidKeyStore")
 
                 val keyStore = KeyStore.getInstance("AndroidKeyStore")
                 keyStore.load(null)
                 val key = keyStore.getKey(identifierAsAlias, null) as SecretKey
 
-                Log.d(TAG, "Returning existing  key $key")
 
                 return key
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            Log.d(TAG, "Exception in getKey $e")
             throw e
         }
     }
