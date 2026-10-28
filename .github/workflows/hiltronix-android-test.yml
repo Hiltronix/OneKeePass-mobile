@@ -54,15 +54,16 @@ jobs:
       - name: Install Yarn Classic
         run: npm install --global yarn@1.22.22
 
-      - name: Regenerate JavaScript lockfile without camera library
+      - name: Verify camera-free JavaScript dependency lockfile
         shell: bash
         run: |
           set -euo pipefail
-          yarn install --ignore-scripts --non-interactive
           if grep -q 'react-native-vision-camera' yarn.lock; then
             echo "::error::Removed native camera package persists in yarn.lock"
             exit 1
           fi
+          # The build uses yarn install --frozen-lockfile, so CI must not
+          # silently regenerate the reviewed dependency graph.
 
       - name: Configure Rust
         shell: bash
@@ -340,7 +341,33 @@ jobs:
           done
           # Keep essential biometric and credential-manager functionality.
           grep -Eq "name='android\\.permission\\.USE_BIOMETRIC'" "$permissions"
-          echo "PASS: no internet, network state, or camera permission in release APK"
+
+          apk="dist/OneKeePass-Hiltronix-Android-arm64-TEST.apk"
+          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk")"
+          if grep -Eq "^uses-feature[^:]*: name='android\\.hardware\\.camera" <<< "$badging"; then
+            echo "::error::Camera hardware feature persists in release APK"
+            exit 1
+          fi
+
+          python3 - "$apk" <<'PY'
+          import sys
+          import zipfile
+
+          with zipfile.ZipFile(sys.argv[1]) as apk:
+              files = apk.namelist()
+              camera_files = [name for name in files
+                              if 'visioncamera' in name.lower() or 'vision-camera' in name.lower()]
+              if camera_files:
+                  raise SystemExit(f"Camera implementation remains in APK: {camera_files}")
+              for name in files:
+                  if name.startswith("classes") and name.endswith(".dex"):
+                      dex = apk.read(name)
+                      if (b"com/mrousavy/camera" in dex or b"com.mrousavy.camera" in dex
+                              or b"Lcom/mrousavy/camera" in dex):
+                          raise SystemExit(f"Vision Camera classes remain in {name}")
+          print("PASS: final APK does not contain Vision Camera package or DEX classes")
+          PY
+          echo "PASS: no internet, network state, or camera permission/feature in release APK"
 
       - name: Upload Android test APK
         uses: actions/upload-artifact@v4
