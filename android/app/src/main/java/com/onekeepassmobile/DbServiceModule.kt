@@ -216,17 +216,19 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 val fd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "rw")
                 if (fd != null) {
                     // Rust duplicates this descriptor and owns only its duplicate.
-                    fd.use { descriptor ->
-                        val response = DbServiceAPI.saveKdbx(
+                    val response = fd.use { descriptor ->
+                        DbServiceAPI.saveKdbx(
                             descriptor.fd.toULong(),
                             fullFileNameUri,
                             fileName,
                             overwrite
                         )
-                        when (response) {
-                            is ApiResponse.Success -> promise.resolve(response.result)
-                            is ApiResponse.Failure -> promise.resolve(response.result)
-                        }
+                    }
+                    // Some providers commit buffered changes only on close.
+                    // Do not report success until closing the descriptor succeeds.
+                    when (response) {
+                        is ApiResponse.Success -> promise.resolve(response.result)
+                        is ApiResponse.Failure -> promise.resolve(response.result)
                     }
                 } else {
                     promise.reject(E_SAVE_FIE_DESCRIPTOR_ERROR, "Invalid file descriptor")
