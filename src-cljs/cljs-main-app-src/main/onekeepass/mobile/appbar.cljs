@@ -33,7 +33,7 @@
                                                   SETTINGS_GENERAL_PAGE_ID
                                                   SETTINGS_KDF_PAGE_ID
                                                   SETTINGS_PAGE_ID
-                                                  SETTINGS_SECURITY_PAGE_ID
+                                                  SETTINGS_SECURITY_PAGE_ID]]
             [onekeepass.mobile.entry-category :refer [entry-category-content]]
             [onekeepass.mobile.entry-form :as entry-form]
             [onekeepass.mobile.entry-history-list :as entry-history-list]
