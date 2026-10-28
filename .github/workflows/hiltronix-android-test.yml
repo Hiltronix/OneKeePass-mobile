@@ -3,7 +3,7 @@ name: Hiltronix Android ARM64 test APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'security/android-logging-crypto-2026-10-28']
     paths:
       - '.github/workflows/hiltronix-android-test.yml'
       - 'scripts/build-android-foss.sh'
@@ -18,7 +18,7 @@ on:
       - 'yarn.lock'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   android-test-apk:
@@ -88,6 +88,103 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
+      - name: Resolve shared Rust core and security dependency versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=db-service-ffi/Cargo.toml
+
+          # Refresh the pinned core and dependencies in Cargo.lock without
+          # modifying the database format, algorithms or feature selection.
+          cargo update --manifest-path "$manifest" -p onekeepass-core
+
+          # Update the older RC-era arithmetic dependencies where present.
+          for change in 'crypto-bigint|0.7.5|0.7.10' 'ctutils|0.4.2|0.4.4'; do
+            IFS='|' read -r name old new <<< "$change"
+            if python3 - "$name" "$old" <<'PY'
+          import sys, tomllib
+          with open("db-service-ffi/Cargo.lock", "rb") as f:
+              packages = tomllib.load(f)["package"]
+          sys.exit(0 if any(p["name"] == sys.argv[1] and p["version"] == sys.argv[2] for p in packages) else 1)
+          PY
+            then
+              cargo update --manifest-path "$manifest" -p "$name@$old" --precise "$new"
+            fi
+          done
+
+          python3 - <<'PY'
+          import sys, tomllib
+          from pathlib import Path
+          with Path("db-service-ffi/Cargo.lock").open("rb") as f:
+              packages = tomllib.load(f)["package"]
+          versions = {}
+          for p in packages:
+              versions.setdefault(p["name"], set()).add(p["version"])
+          forbidden = {
+              ("crypto-bigint", "0.5.5"),
+              ("crypto-bigint", "0.7.5"),
+              ("quick-xml", "0.37.5"),
+              ("ctutils", "0.4.2"),
+              ("p256", "0.13.2"),
+          }
+          required = {
+              ("crypto-bigint", "0.7.10"),
+              ("quick-xml", "0.41.0"),
+              ("ctutils", "0.4.4"),
+              ("p256", "0.14.0-rc.10"),
+          }
+          present = {(name, version) for name, vs in versions.items() for version in vs}
+          old = forbidden & present
+          missing = required - present
+          for name in ("crypto-bigint", "quick-xml", "ctutils", "p256"):
+              print(f"{name}: {', '.join(sorted(versions.get(name, [])))}")
+          if old or missing:
+              sys.exit(f"SECURITY GATE FAILED: forbidden={sorted(old)} missing={sorted(missing)}")
+          print("PASS: patched shared core and cryptography/XML dependencies")
+          PY
+
+      - name: Verify sensitive command and logging exposure was removed
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          checks = {
+            "db-service-ffi/src/commands.rs": [
+              '"test_call" =>',
+              'Invalid command args received {}',
+              'Decrypted text is {}',
+            ],
+            "db-service-ffi/src/android/support_services.rs": [
+              '"test_call" =>',
+              'Invalid command or args: Command call',
+              'Uncrypted string data is',
+            ],
+            "db-service-ffi/src/remote_storage/secure_store.rs": [
+              'Uncrypted string data is',
+            ],
+            "android/app/src/main/java/com/onekeepassmobile/DbServiceModule.kt": [
+              'command name $commandName and args $args',
+              'jsonArgs $jsonArgs',
+            ],
+            "android/app/src/main/java/com/onekeepassmobile/SecureKeyOperationImpl.kt": [
+              'Stored dbKey $dbKey with value $encKeyData',
+              'Returning key $k',
+            ],
+            "android/app/src/main/java/com/onekeepassmobile/ApiCallbackServiceImpl.kt": [
+              'clipboardCopyString is called with $clipData',
+            ],
+          }
+          for file, secrets in checks.items():
+              text = Path(file).read_text()
+              for phrase in secrets:
+                  if phrase in text:
+                      raise SystemExit(f"Sensitive logging or test command still exposed in {file}: {phrase}")
+          rust = Path("db-service-ffi/src/udl_functions.rs").read_text()
+          if '#[cfg(all(target_os = "android", debug_assertions))]' not in rust:
+              raise SystemExit("Production Rust logging restriction missing")
+          print("PASS: sensitive logging and test-command static checks")
+          PY
+
       - name: Compile unsigned Android release APK
         shell: bash
         run: bash scripts/build-android-foss.sh
@@ -136,3 +233,21 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 14
+
+      # GITHUB_TOKEN commits intentionally do not trigger another workflow.
+      # Only persist an updated lock after all source, security, build, and
+      # signing checks have succeeded.
+      - name: Commit validated Android Cargo.lock to isolated security branch
+        if: github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add db-service-ffi/Cargo.lock
+          if ! git diff --cached --quiet; then
+            git commit -m "Lock Android core and patched cryptography/XML dependency versions"
+            git push origin HEAD:security/android-logging-crypto-2026-10-28
+          else
+            echo "Cargo.lock already matches the validated graph"
+          fi
