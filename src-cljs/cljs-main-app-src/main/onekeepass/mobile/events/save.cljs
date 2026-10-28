@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as str]
    [onekeepass.mobile.background :as bg]
-   [onekeepass.mobile.background-remote-server :as bg-rs]
+
    [onekeepass.mobile.constants :as const]
    [onekeepass.mobile.events.common :refer [active-db-key
                                             assoc-in-key-db
@@ -290,95 +290,9 @@
 
       :fx [[:dispatch [:common/message-modal-hide]]]})))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;; Merge on save conflict ;;;;;;;;;;;;;;;;
-
-(reg-event-fx
- :merge-on-save-error
- (fn [{:keys [db]} [_event-id]]
-   ;; User explicitly resolved the conflict by merging — clear any
-   ;; external-change Ignore snooze so future remote changes resurface.
-   {:db (update db (active-db-key db) dissoc :external-change-ignored-mtime)
-    :fx [[:dispatch [:save-error-modal-hide]]
-         [:dispatch [:common/message-modal-show nil "Merging remote changes..."]]
-         [:bg-save-error-merge-with-remote [(active-db-key db)]]]}))
-
-(reg-fx
- :bg-save-error-merge-with-remote
- (fn [[db-key]]
-   (bg-rs/merge-with-remote
-    db-key
-    (fn [api-response]
-      (when-some [merge-result (on-ok api-response
-                                      (fn [error]
-                                        (dispatch [:save-error-merge-error error])))]
-        (dispatch [:save-error-merge-completed merge-result]))))))
-
-(reg-event-fx
- :save-error-merge-completed
- (fn [{:keys [_db]} [_event-id merge-result]]
-   {:fx [[:dispatch [:save/save-current-kdbx
-                     {:error-title "Save after remote changes merging"
-                      :save-message "Merging and saving..."
-                      :merge-save-called true
-                      :on-save-ok (fn []
-                                    (dispatch [:save-error-merge-save-completed merge-result]))
-                      :on-save-error (fn [error]
-                                       (dispatch [:save-error-merge-save-failed merge-result error]))}]]]}))
-
-;; Auto-save after merge failed. Show the merge-result-dialog FIRST so the user
-;; sees what was merged (the in-memory db has it, even though the upload failed),
-;; and stash the save error to surface in the save-error-modal once the dialog
-;; is closed.
-(reg-event-fx
- :save-error-merge-save-failed
- (fn [{:keys [db]} [_event-id merge-result error]]
-   {:db (assoc db :pending-merge-save-failure
-               {:error error
-                :error-title "Save after remote changes merging"})
-    :fx [[:dispatch [:common/message-modal-hide]]
-         [:dispatch [:generic-dialog-show-with-state
-                     :merge-result-dialog
-                     {:data merge-result
-                      :stay-on-page? true
-                      :show-save-error-after? true}]]]}))
-
+;; Remote-server save and merge endpoints are absent in this offline build.
 (defn merge-result-dialog-close-and-show-save-error []
-  (dispatch [:merge-result-dialog-close-and-show-save-error]))
-
-(reg-event-fx
- :merge-result-dialog-close-and-show-save-error
- (fn [{:keys [db]} _]
-   (let [{:keys [error error-title]} (:pending-merge-save-failure db)]
-     {:db (dissoc db :pending-merge-save-failure)
-      :fx [[:dispatch [:generic-dialog-close :merge-result-dialog]]
-           [:run-handle-save-error {:error error
-                                    :error-title error-title
-                                    :merge-save-called true}]]})))
-
-(reg-fx
- :run-handle-save-error
- (fn [m]
-   (handle-save-error m)))
-
-(reg-event-fx
- :save-error-merge-save-completed
- (fn [{:keys [db]} [_event-id merge-result]]
-   {:fx [[:dispatch [:common/refresh-forms]]
-         [:dispatch [:common/message-modal-hide]]
-         [:dispatch [:common/next-page const/ENTRY_CATEGORY_PAGE_ID (current-database-name db)]]
-         [:dispatch [:generic-dialog-show-with-state
-                     :merge-result-dialog
-                     {:data merge-result
-                      :stay-on-page? true}]]]}))
-
-(reg-event-fx
- :save-error-merge-error
- (fn [{:keys [db]} [_event-id error]]
-   {:fx [[:dispatch [:common/message-modal-hide]]
-         ;; Clean up the "backup on error" left from the initial failed save so
-         ;; the user isn't stuck with leaked backup state when merge itself fails.
-         [:bg-save-conflict-resolution-cancel [(active-db-key db)]]
-         [:dispatch [:common/error-box-show 'mergeFailed error]]]}))
+  (dispatch [:generic-dialog-close :merge-result-dialog]))
 
 (reg-event-fx
  :save-error-modal-cancel
