@@ -180,9 +180,8 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
         executorService.execute {
             val uri = Uri.parse(fullFileNameUri);
             try {
-                // A db loaded from its latest backup is read only. That is checked here before
-                // anything else as the "rwt" open below truncates the db file before save_kdbx
-                // gets a chance to refuse the save
+                // Refuse saves from read-only databases before creating any backup
+                // or opening the destination for writing.
                 val writableCheck = DbServiceAPI.ensureDbWritable(fullFileNameUri)
                 if (writableCheck is ApiResponse.Failure) {
                     Log.e(TAG, "Save refused as the db is opened read only")
@@ -202,32 +201,34 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                 // a resolver. If we use internal file path, we need to do something similar to readKdbx
 
                 val fileName = FileUtils.getMetaInfo(contentResolver, uri)?.filename ?: ""
-                val fd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "rwt");
-                //null if the provider recently crashed
-                if (fd != null) {
-                    // fd.detachFd() is not used so that Save works without any issues in case of
-                    // google drive
-                    when (val response = DbServiceAPI.saveKdbx(
-                        fd.fd.toULong(),
-                        fullFileNameUri,
-                        fileName,
-                        overwrite
-                    )) {
-                        is ApiResponse.Success -> {
-                            //Log.d(TAG, "File created using fd with SUCCESS response ${response.result}")
-                            promise.resolve(response.result)
-                        }
 
-                        is ApiResponse.Failure -> {
-                            //Log.d(TAG, "File created using fd with FAILURE response $response.result")
-                            promise.resolve(response.result)
+                // This completes and fsyncs an encrypted recovery snapshot before even
+                // asking the document provider for write access. A failing provider must
+                // not be able to erase the only copy of the modified database.
+                val backupResult = DbServiceAPI.stageBackupBeforeSave(fullFileNameUri)
+                if (backupResult is ApiResponse.Failure) {
+                    promise.resolve(backupResult.result)
+                    return@execute
+                }
+
+                // "rwt" truncates on open. "rw" does not request truncation and
+                // allows Rust to write then set the final length explicitly.
+                val fd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "rw")
+                if (fd != null) {
+                    // Rust duplicates this descriptor and owns only its duplicate.
+                    fd.use { descriptor ->
+                        val response = DbServiceAPI.saveKdbx(
+                            descriptor.fd.toULong(),
+                            fullFileNameUri,
+                            fileName,
+                            overwrite
+                        )
+                        when (response) {
+                            is ApiResponse.Success -> promise.resolve(response.result)
+                            is ApiResponse.Failure -> promise.resolve(response.result)
                         }
                     }
-                    // IMPORTANT: The caller is responsible for closing as the file is not yet closed
-                    fd.close()
-                    // Log.d(TAG, "File created using fd with response $response")
                 } else {
-                    // Do we need to ask the user select the kdbx again to read ?
                     promise.reject(E_SAVE_FIE_DESCRIPTOR_ERROR, "Invalid file descriptor")
                 }
             } catch (e: SecurityException) {
