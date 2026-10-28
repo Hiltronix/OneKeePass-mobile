@@ -153,7 +153,7 @@ pub(crate) fn remove_orphaned_backup_dirs<P: AsRef<Path>>(
 pub(crate) fn prune_backup_history_files(db_key: &str) {
     let limit = AppState::backup_history_count() as usize;
     let file_hist_root = backup_file_history_root(db_key);
-    let mut buffer: Vec<(DirEntry, i64)> = list_of_files_with_modified_times(&file_hist_root);
+    let mut buffer: Vec<(DirEntry, (i64, u32))> = list_of_files_with_modified_times(&file_hist_root);
 
     let files_count = buffer.len();
 
@@ -184,7 +184,7 @@ pub(crate) fn prune_backup_history_files(db_key: &str) {
 // The files are sorted based on the last modified time and the recent one is picked
 pub(crate) fn latest_backup_file_path(full_file_uri_str: &str) -> Option<PathBuf> {
     let file_hist_root = backup_file_history_root(full_file_uri_str);
-    let buffer: Vec<(DirEntry, i64)> = list_of_files_with_modified_times(&file_hist_root);
+    let buffer: Vec<(DirEntry, (i64, u32))> = list_of_files_with_modified_times(&file_hist_root);
     // Find the file with the latest modified time
     buffer.iter().max_by_key(|k| k.1).map(|e| e.0.path())
 }
@@ -238,8 +238,8 @@ fn backup_file_history_root(db_key: &str) -> PathBuf {
 }
 
 // Gets all backup history files found under the historty root of a db file 'file_hist_root'
-fn list_of_files_with_modified_times<P: AsRef<Path>>(file_hist_root: P) -> Vec<(DirEntry, i64)> {
-    let mut buffer: Vec<(DirEntry, i64)> = vec![];
+fn list_of_files_with_modified_times<P: AsRef<Path>>(file_hist_root: P) -> Vec<(DirEntry, (i64, u32))> {
+    let mut buffer: Vec<(DirEntry, (i64, u32))> = vec![];
     if let Ok(entries) = fs::read_dir(file_hist_root) {
         for entry in entries {
             if let Ok(e) = entry {
@@ -251,7 +251,10 @@ fn list_of_files_with_modified_times<P: AsRef<Path>>(file_hist_root: P) -> Vec<(
                     if let Some(t) = e
                         .metadata()
                         .iter()
-                        .map(|m| FileTime::from_last_modification_time(m).unix_seconds())
+                        .map(|m| {
+                            let modified = FileTime::from_last_modification_time(m);
+                            (modified.unix_seconds(), modified.nanoseconds())
+                        })
                         .next()
                     {
                         buffer.push((e, t));
