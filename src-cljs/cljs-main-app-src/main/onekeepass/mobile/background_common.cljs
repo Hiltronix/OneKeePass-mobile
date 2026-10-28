@@ -3,7 +3,7 @@
    [react-native :as rn]
    ["@react-native-clipboard/clipboard" :as rnc-clipboard]
    ["react-native-file-viewer" :as native-file-viewer]
-   ["react-native-vision-camera" :as rn-vision-camera]
+
    [cljs.core.async :refer [go]]
    [cljs.core.async.interop :refer-macros [<p!]]
    [onekeepass.mobile.utils :as u :refer [contains-val?]]
