@@ -5,6 +5,7 @@ mod app_preference;
 mod auto_open;
 mod app_state;
 mod backup;
+mod backup_filename;
 mod biometric_auth;
 mod commands;
 mod event_dispatcher;
