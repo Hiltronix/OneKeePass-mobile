@@ -37,11 +37,23 @@ The scan was intentionally performed without automatic upgrades.
   `@xmldom/xmldom 0.8.15`,
   `@babel/plugin-transform-modules-systemjs 7.29.4`,
   `browserslist 4.28.7`, `launch-editor 2.14.2`.
-- The remaining critical advisory affects legacy `babel-traverse 6.26.0`,
-  pulled in through `@cljs-oss/module-deps` for build-time transformations.
-  The registry advisory lists no practical same-major patched version.
-  Its reachable inputs and migration feasibility must be assessed before a
-  breaking compiler replacement.
+- The remaining critical advisory is `GHSA-67hx-6x53-jw92`
+  (`CVE-2023-45133`) in legacy `babel-traverse 6.26.0`, required by
+  `@cljs-oss/module-deps 1.1.1`. The dependency is used in the ClojureScript
+  build toolchain, not as an Android app service.
+- The upstream advisory describes execution of attacker-crafted JavaScript
+  during compilation when an affected plugin calls `path.evaluate()` or
+  `path.evaluateTruthy()`. Compiling only reviewed, trusted project sources
+  reduces exposure, but does not eliminate build-supply-chain attacks.
+  Reference: https://github.com/babel/babel/security/advisories/GHSA-67hx-6x53-jw92
+- Babel 6 is unsupported and has **no same-major security fix**. Simply
+  overriding `babel-traverse 6.26.0` with `@babel/traverse 7.x` is unsafe
+  because the internal AST and traversal APIs changed.
+- **Disposition:** unresolved build-time conditional RCE exposure, not a
+  demonstrated reachable exploit in the installed offline APK. Keep GitHub
+  Actions compiling only reviewed code, keep permissions read-only, and
+  investigate a migration of `@cljs-oss/module-deps` separately. Do not
+  claim the critical advisory fixed or silently waive it.
 - Other unresolved advisories involve `sharp`, `brace-expansion`,
   `minimatch`, `js-yaml`, `picomatch`, `lodash` and other packages.
   Prioritize packages actually bundled into the APK or used with untrusted
