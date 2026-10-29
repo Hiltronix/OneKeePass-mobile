@@ -95,6 +95,61 @@ jobs:
           git diff --check
           yarn install --frozen-lockfile --non-interactive
 
+      - name: Measure remaining advisory exposure
+        if: success()
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p audit-reports
+          yarn audit --json > audit-reports/remaining-yarn-advisories.jsonl
+          status=$?
+          echo "Audit exit code: $status"
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          path = Path('audit-reports/remaining-yarn-advisories.jsonl')
+          advisories = {}
+          summary = {}
+          for raw in path.read_text().splitlines():
+              try:
+                  item = json.loads(raw)
+              except json.JSONDecodeError:
+                  continue
+              if item.get('type') == 'auditAdvisory':
+                  advisory = item['data']['advisory']
+                  advisories[advisory['id']] = advisory
+              elif item.get('type') == 'auditSummary':
+                  summary = item['data']
+          severities = Counter(v['severity'] for v in advisories.values())
+          report = {
+              'distinct_advisories': len(advisories),
+              'severity': dict(severities),
+              'reported_occurrences': summary.get('vulnerabilities', {}),
+              'affected_modules': sorted({v['module_name'] for v in advisories.values()}),
+              'critical': [
+                  {'id': v['id'], 'module': v['module_name'], 'title': v['title']}
+                  for v in advisories.values() if v['severity'] == 'critical'
+              ]
+          }
+          Path('audit-reports/remaining-advisories-summary.json').write_text(
+              json.dumps(report, indent=2) + '\n'
+          )
+          print(json.dumps(report, indent=2))
+          if not summary:
+              raise SystemExit('Advisory scan did not return a summary; check registry availability')
+          PY
+
+      - name: Upload remaining advisory report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hiltronix-Android-patched-yarn-audit-${{ github.run_number }}
+          path: audit-reports/
+          retention-days: 30
+          if-no-files-found: error
+
       - name: Commit updated lockfile only on isolated branch
         shell: bash
         run: |
