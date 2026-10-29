@@ -1,4 +1,14 @@
 fn main() {
+    // Botan is compiled as C++ and linked into this Rust cdylib. Android's
+    // shared C++ runtime must be a DT_NEEDED dependency of libdb_service_ffi.so,
+    // not merely an unrelated .so packaged elsewhere in the APK.
+    //
+    // Without this dependency, the Android loader fails on missing __ndk1
+    // std::string symbols during UniFFI initialization, before the UI opens.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!("cargo:rustc-link-lib=dylib=c++_shared");
+    }
+
     uniffi::generate_scaffolding("./src/db_service.udl").unwrap();
 
     // Using println! to see output in build.rs will not work
