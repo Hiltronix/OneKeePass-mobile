@@ -169,7 +169,7 @@ jobs:
           # acknowledge completion after the provider descriptor closes.
           create = module.split('fun createKdbx(', 1)[1].split('fun completeSaveAsOnError(', 1)[0]
           assert 'val response = fd.use { descriptor ->' in create
-          assert create.index('val response = fd.use') < create.index('resolveResponse(response, promise)')
+          assert create.index('val response = fd.use') < create.rindex('resolveResponse(response, promise)')
           native = Path('db-service-ffi/src/android/support_services.rs').read_text()
           create_native = native.split('pub fn create_kdbx(', 1)[1].split('pub fn save_key_file(', 1)[0]
           assert 'try_clone_to_owned()' in create_native
