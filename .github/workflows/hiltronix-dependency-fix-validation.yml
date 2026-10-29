@@ -10,7 +10,7 @@ on:
       - '.github/workflows/hiltronix-dependency-fix-validation.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   resolve-and-validate:
@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yarn install --non-interactive
+          yarn install --frozen-lockfile --non-interactive
           node <<'JS'
           const assert = require('assert');
           const expected = {
@@ -154,14 +154,3 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      - name: Commit updated lockfile only on isolated branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add yarn.lock
-          if ! git diff --cached --quiet; then
-              git commit -m 'Lock patched transitive dependencies after compatibility checks'
-              git push origin HEAD:security/android-dependency-hardening-2026-10-29
-          fi
