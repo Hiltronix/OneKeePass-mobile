@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == 'f5e80beca9ae2dff9f611b22e5cd08645274f9d9')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == 'e8b2cb63c7fc848dd2a62a44a4fdb95fc076780f')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -64,10 +64,10 @@ jobs:
         if: ${{ env.OKP_RELEASE_BUILD == '1' }}
         shell: bash
         env:
-          KEYSTORE_PRESENT: ${{ secrets.OKP_KEYSTORE_BASE64 != '' }}
-          STORE_PASSWORD_PRESENT: ${{ secrets.OKP_KEYSTORE_PASSWORD != '' }}
-          KEY_ALIAS_PRESENT: ${{ secrets.OKP_KEY_ALIAS != '' }}
-          KEY_PASSWORD_PRESENT: ${{ secrets.OKP_KEY_PASSWORD != '' }}
+          KEYSTORE_PRESENT: ${{ secrets.ONEKEYPASS_KEYSTORE_BASE64 != '' }}
+          STORE_PASSWORD_PRESENT: ${{ secrets.ONEKEYPASS_KEYSTORE_PASSWORD != '' }}
+          KEY_ALIAS_PRESENT: ${{ secrets.ONEKEYPASS_KEY_ALIAS != '' }}
+          KEY_PASSWORD_PRESENT: ${{ secrets.ONEKEYPASS_KEY_PASSWORD != '' }}
         run: |
           set -euo pipefail
           for name in KEYSTORE_PRESENT STORE_PASSWORD_PRESENT KEY_ALIAS_PRESENT KEY_PASSWORD_PRESENT; do
@@ -454,10 +454,10 @@ jobs:
         if: ${{ env.OKP_RELEASE_BUILD == '1' }}
         shell: bash
         env:
-          OKP_SIGNING_B64: ${{ secrets.OKP_KEYSTORE_BASE64 }}
-          OKP_SIGNING_STORE_PASSWORD: ${{ secrets.OKP_KEYSTORE_PASSWORD }}
-          OKP_SIGNING_KEY_ALIAS: ${{ secrets.OKP_KEY_ALIAS }}
-          OKP_SIGNING_KEY_PASSWORD: ${{ secrets.OKP_KEY_PASSWORD }}
+          OKP_SIGNING_B64: ${{ secrets.ONEKEYPASS_KEYSTORE_BASE64 }}
+          OKP_SIGNING_STORE_PASSWORD: ${{ secrets.ONEKEYPASS_KEYSTORE_PASSWORD }}
+          OKP_SIGNING_KEY_ALIAS: ${{ secrets.ONEKEYPASS_KEY_ALIAS }}
+          OKP_SIGNING_KEY_PASSWORD: ${{ secrets.ONEKEYPASS_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           umask 077
