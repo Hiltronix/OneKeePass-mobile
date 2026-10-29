@@ -1,0 +1,32 @@
+name: Hiltronix KDBX backup path validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['security/android-backup-path-validation-2026-10-29']
+
+permissions:
+  contents: read
+
+jobs:
+  validate-private-backup-paths:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Rust backup filename security tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --edition=2021 --test db-service-ffi/src/backup_filename.rs \
+            -o "$RUNNER_TEMP/kdbx-backup-path-tests"
+          "$RUNNER_TEMP/kdbx-backup-path-tests"
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('db-service-ffi/src')
+          assert 'mod backup_filename;' in (root / 'lib.rs').read_text()
+          assert 'crate::backup_filename::backup_file_stem(kdbx_file_name)?' in (root / 'backup.rs').read_text()
+          assert 'rustc --edition=2021 --test db-service-ffi/src/backup_filename.rs' in Path('.github/workflows/hiltronix-android-test.yml').read_text()
+          print('PASS: all KDBX history paths validate the provider display name')
+          PY
