@@ -1,0 +1,133 @@
+name: Hiltronix Android Maven dependency advisories
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['security/android-logging-crypto-2026-10-28']
+    paths:
+      - '.github/workflows/hiltronix-android-gradle-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gradle-advisories:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      OKP_FOSS_BUILD: '1'
+      OKP_TEST_BUILD: '1'
+    steps:
+      - name: Check out security branch
+        uses: actions/checkout@v4
+
+      - name: Configure Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install locked React Native toolchain
+        run: |
+          npm install --global yarn@1.22.22
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android dependency resolution platform
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
+
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Resolve exact Android release runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit-reports
+          cd android
+          gradle -q :app:dependencies --configuration releaseRuntimeClasspath \
+            > ../audit-reports/gradle-runtime-dependencies.txt
+
+      - name: Query OSV for resolved Maven dependency advisories
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import re
+          import urllib.request
+          from pathlib import Path
+
+          source = Path('audit-reports/gradle-runtime-dependencies.txt').read_text()
+          if 'releaseRuntimeClasspath' not in source:
+              raise SystemExit('Gradle release dependency inventory is missing')
+          packages = set()
+          pattern = re.compile(r'(?:\+---|\\---) ([\w.\-]+):([\w.\-]+):([^\s()]+)(?:\s+->\s+([^\s()]+))?')
+          for match in pattern.finditer(source):
+              group, artifact, version, resolved = match.groups()
+              version = resolved or version
+              if re.match(r'^[0-9][\w.+\-]*$', version):
+                  packages.add((f'{group}:{artifact}', version))
+          packages = sorted(packages)
+          if not packages:
+              raise SystemExit('No resolved Gradle Maven coordinates found; scan is incomplete')
+
+          results = []
+          for offset in range(0, len(packages), 100):
+              chunk = packages[offset:offset + 100]
+              queries = [
+                  {'package': {'name': name, 'ecosystem': 'Maven'}, 'version': version}
+                  for name, version in chunk
+              ]
+              payload = json.dumps({'queries': queries}).encode('utf-8')
+              request = urllib.request.Request(
+                  'https://api.osv.dev/v1/querybatch',
+                  data=payload,
+                  headers={'Content-Type': 'application/json', 'User-Agent': 'Hiltronix-Android-Audit/1'},
+                  method='POST'
+              )
+              with urllib.request.urlopen(request, timeout=90) as response:
+                  batch = json.load(response)
+              answers = batch.get('results', [])
+              if len(answers) != len(chunk):
+                  raise SystemExit('OSV result count mismatch; advisory scan incomplete')
+              for (name, version), answer in zip(chunk, answers):
+                  if answer.get('next_page_token'):
+                      raise SystemExit(f'OSV pagination needed for {name}; scan incomplete')
+                  vulns = sorted({v['id'] for v in answer.get('vulns', [])})
+                  if vulns:
+                      results.append({'package': name, 'version': version, 'advisories': vulns})
+
+          output = {
+              'resolved_packages_checked': len(packages),
+              'affected_packages': len(results),
+              'results': results
+          }
+          Path('audit-reports/gradle-osv-advisories.json').write_text(
+              json.dumps(output, indent=2) + '\n'
+          )
+          print(f"OSV scanned {len(packages)} resolved Maven dependencies")
+          print(f"Advisory matches: {len(results)} packages")
+          for item in results:
+              print(f"{item['package']}:{item['version']} -> {', '.join(item['advisories'])}")
+          if results:
+              raise SystemExit('Maven advisories need review before release approval')
+          PY
+
+      - name: Upload resolved Gradle dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hiltronix-Android-Maven-advisories-${{ github.run_number }}
+          path: audit-reports/
+          if-no-files-found: error
+          retention-days: 30
