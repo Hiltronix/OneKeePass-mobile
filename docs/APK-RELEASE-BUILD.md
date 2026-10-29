@@ -6,6 +6,52 @@ The APK on GitHub is the fully FOSS build: it leaves out the camera-based QR cod
 
 For the development setup, see [BUILD.md](./BUILD.md).
 
+## Hiltronix private APK signing
+
+The Hiltronix security branch builds an offline `arm64-v8a` APK with application ID
+`com.onekeepassmobile.hiltronix`, separate from the Google Play package.
+Push-triggered builds use a **new disposable test signing key** on every run.
+Do not install those test builds over a permanently signed installation.
+
+The permanent signing key is a PKCS12 (`.p12`) keystore. Store its four values
+as **repository Actions secrets** (not workflow variables):
+
+| GitHub secret | Required content |
+|---|---|
+| `OKP_KEYSTORE_BASE64` | Base64 encoding of the complete permanent PKCS12 keystore |
+| `OKP_KEYSTORE_PASSWORD` | Keystore password |
+| `OKP_KEY_ALIAS` | Alias of the certificate/private key within the keystore |
+| `OKP_KEY_PASSWORD` | Private-key password (often the same as the PKCS12 store password) |
+
+**To build with that key:** Open GitHub Actions > **Hiltronix Android ARM64 test APK**
+> **Run workflow**. Select branch `security/android-logging-crypto-2026-10-28`,
+then check **Sign a permanent Hiltronix APK with the repository keystore secrets**.
+The signing step is unavailable on automated pushes, other branches and pull requests.
+
+GitHub builds the unsigned APK, runs the existing security, KDBX recovery and
+permission checks, verifies that dependency locks did not change, then signs
+the APK with `apksigner` using the secrets only in the final signing step.
+The keystore is written to the temporary runner directory with restricted
+permissions and removed at the end of that step. A successful manual run
+uploads the signed APK and its certificate, version, manifest and SHA256
+verification files as a GitHub Actions artifact:
+
+`Hiltronix-Android-arm64-SIGNED-<run_number>`
+
+The signed APK is named `OneKeePass-Hiltronix-Android-arm64-RELEASE.apk`.
+The permanent signing run uses an automatically increasing Android
+`versionCode` derived from its GitHub workflow run number and keeps the same
+application ID and signing certificate. All subsequent updates **must use the
+same keystore**; a different certificate cannot update this installed app.
+Keep an offline backup of the original keystore and its passwords.
+
+**Signing is not a substitute for device testing.** Before using an important
+KDBX, confirm file-open, save/reopen, backup/recovery, Android autofill and
+external `otpauth://` imports using a disposable database. In particular,
+Android Storage Access Framework providers do not all support atomic file
+replacement. Do not assume interruption safety without device tests.
+
+
 ## Toolchain
 
 Official releases are built on macOS (Apple Silicon). Each GitHub release from 0.24.0 onwards has a `BUILD-INFO.txt` next to the APK. It lists the exact versions of rustc, cargo-ndk, both Android NDKs, Gradle, the JDK, Node.js, Yarn and shadow-cljs used for that release. Install those versions before building.
