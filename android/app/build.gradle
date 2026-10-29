@@ -132,8 +132,17 @@ android {
         applicationId "com.onekeepassmobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Need to use next increment in 'versionCode' as it needs to be unique for each release
-        versionCode 23
+        // GitHub run numbers advance for both test and release builds. A manually
+        // signed Hiltronix release receives a monotonically increasing versionCode.
+        if (System.getenv("OKP_RELEASE_BUILD") == "1") {
+            def releaseCode = System.getenv("OKP_RELEASE_VERSION_CODE")
+            if (releaseCode == null || !(releaseCode ==~ /[0-9]+/)) {
+                throw new GradleException("OKP_RELEASE_VERSION_CODE is required for a signed release")
+            }
+            versionCode Integer.parseInt(releaseCode)
+        } else {
+            versionCode 23
+        }
         versionName "0.24.0"
     }
 
@@ -174,11 +183,14 @@ android {
 
     }
     buildTypes {
-        // CI test APK only: use a separate application ID so this test build can
-        // be installed beside the official Google Play application.
-        // Keep the production release configuration unchanged.
+        // Keep the Hiltronix package ID stable and separate from Google Play.
+        // Only an explicitly requested release has the permanent signing
+        // identity and a monotonically increasing versionCode.
         release {
-            if (System.getenv("OKP_TEST_BUILD") == "1") {
+            if (System.getenv("OKP_RELEASE_BUILD") == "1") {
+                applicationIdSuffix ".hiltronix"
+                versionNameSuffix "-hiltronix"
+            } else if (System.getenv("OKP_TEST_BUILD") == "1") {
                 applicationIdSuffix ".hiltronix"
                 versionNameSuffix "-hiltronix-test"
             }
