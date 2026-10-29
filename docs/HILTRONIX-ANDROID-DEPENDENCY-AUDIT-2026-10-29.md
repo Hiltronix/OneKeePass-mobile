@@ -42,10 +42,28 @@ The scan was intentionally performed without automatic upgrades.
 
 ## Gradle and native Android dependencies
 
-The RustSec and Yarn tools do **not** scan vulnerabilities in Gradle/AAR/JNI
-dependencies. Their security advisories and resulting resolved release
-classpath still require a separate review, including AndroidX Credentials,
-AndroidX Security Crypto, React Native and native module versions.
+The dedicated Maven/OSV workflow at
+https://github.com/Hiltronix/OneKeePass-mobile/actions/runs/40880823352
+successfully resolved **103** Android `releaseRuntimeClasspath` Maven
+dependencies. It found **one** advisory-affected coordinate:
+
+- `com.squareup.okio:okio:2.9.0`, `GHSA-w33c-445m-f8w7`
+  (`CVE-2023-3635`, medium severity / CVSS 5.9).
+- Okio `GzipSource` can throw an uncaught error on malformed gzip data,
+  potentially causing denial of service.
+- The advisory lists `3.4.0` as the first patched Okio 3.x release.
+- The runtime dependency graph shows this Okio version is selected through
+  React Native `0.85.3` and `okhttp:4.9.2`. A forced Okio 3.x override
+  may introduce binary/API compatibility problems with OkHttp 4.9.2.
+- The Hiltronix APK has no Internet permission, reducing remote exploit
+  reachability. A malicious local gzip input path has not been ruled out.
+- Treat this as an **unresolved residual advisory** until an Android-compatible
+  patched upgrade is compiled and behavior tested, or the affected API is
+  demonstrably unreachable.
+
+The scan covers resolved release Maven coordinates, but **not every native
+JNI binary or all build-plugin dependencies**. Review these separately, along
+with AndroidX Credentials, AndroidX Security Crypto and React Native versions.
 
 ## Required before closing the audit
 
