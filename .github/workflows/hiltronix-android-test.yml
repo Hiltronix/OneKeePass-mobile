@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '037622ad215dfc788d89b636c2d511f93c1f2a9f')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == 'f45db2d0f04f1b6512152a8f71a793da549227e7')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -445,6 +445,63 @@ jobs:
       - name: Compile unsigned Android release APK
         shell: bash
         run: bash scripts/build-android-foss.sh
+
+      - name: Verify packaged Rust/Botan library links to Android C++ runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          from zipfile import ZipFile
+
+          apk = Path('android/app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk')
+          assert apk.is_file() and apk.stat().st_size > 0
+          with tempfile.TemporaryDirectory() as tmp, ZipFile(apk) as package:
+              required = ('libdb_service_ffi.so', 'libc++_shared.so')
+              libs = {}
+              for name in required:
+                  member = 'lib/arm64-v8a/' + name
+                  if member not in package.namelist():
+                      raise SystemExit(f'Native startup blocker: {member} absent from APK')
+                  dest = Path(tmp, name)
+                  dest.write_bytes(package.read(member))
+                  libs[name] = dest
+
+              def readelf(*arguments):
+                  return subprocess.check_output(
+                      ['readelf', '-W', *arguments], text=True
+                  )
+
+              db = libs['libdb_service_ffi.so']
+              cxx = libs['libc++_shared.so']
+              needed = readelf('-d', str(db))
+              if 'Shared library: [libc++_shared.so]' not in needed:
+                  raise SystemExit(
+                      'Native startup blocker: Rust/Botan .so does not declare '
+                      'DT_NEEDED libc++_shared.so'
+                  )
+
+              # Crash observed on Android 16: unresolved std::__ndk1::string
+              # destructor on JNA Native.load(db_service_ffi).
+              symbol = (
+                  '_ZNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_'
+                  '9allocatorIcEEED2Ev'
+              )
+              exports = readelf('--dyn-syms', str(cxx))
+              matches = [
+                  line for line in exports.splitlines()
+                  if line.split() and line.split()[-1] == symbol
+              ]
+              if not any(' UND ' not in line for line in matches):
+                  raise SystemExit(
+                      'Native startup blocker: packaged libc++ does not export '
+                      'the exact C++ symbol required by Botan'
+                  )
+              print('PASS: Rust/Botan DT_NEEDED links to packaged libc++_shared.so')
+              print('PASS: packaged C++ runtime exports the previously missing symbol')
+          PY
 
       - name: Verify all builds use committed dependency locks
         shell: bash
