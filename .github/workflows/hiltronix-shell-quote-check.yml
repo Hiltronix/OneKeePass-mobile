@@ -1,0 +1,91 @@
+name: Hiltronix patched JavaScript dependency lock verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['security/android-shell-quote-2026-10-29']
+    paths:
+      - 'package.json'
+      - 'yarn.lock'
+      - '.github/workflows/hiltronix-shell-quote-check.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Yarn Classic
+        run: npm install --global yarn@1.22.22
+
+      - name: Resolve patched nanoid and shell-quote and verify existing patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          yarn install --non-interactive
+          node - <<'JS'
+          const pkg = require('shell-quote/package.json');
+          if (pkg.version !== '1.12.0') {
+              throw new Error('Expected shell-quote 1.12.0, got ' + pkg.version);
+          }
+          const shellQuote = require('shell-quote');
+          if (shellQuote.parse('echo testing').join(' ') !== 'echo testing') {
+              throw new Error('Basic shell-quote parse regression');
+          }
+          const nanoidVersion = require('nanoid/package.json').version;
+          if (nanoidVersion !== '3.3.20') {
+              throw new Error('Expected nanoid 3.3.20, got ' + nanoidVersion);
+          }
+          const { nanoid } = require('nanoid');
+          const value = nanoid();
+          if (value.length !== 21) {
+              throw new Error('Unexpected nanoid output length');
+          }
+          JS
+          python3 - <<'PY'
+          from pathlib import Path
+
+          lock = Path('yarn.lock').read_text()
+          lines = lock.splitlines()
+          headers = [i for i, line in enumerate(lines) if line.startswith('shell-quote@')]
+          if len(headers) != 1:
+              raise SystemExit(f'Expected one shell-quote lock entry, found {len(headers)}')
+          entry = lines[headers[0]:headers[0] + 6]
+          if '  version "1.12.0"' not in entry:
+              raise SystemExit('shell-quote 1.12.0 is not locked')
+          if 'version "1.8.3"' in lock[lock.index('shell-quote@'):lock.index('shell-quote@') + 200]:
+              raise SystemExit('Old vulnerable shell-quote lock remains')
+          nanoid_headers = [i for i, line in enumerate(lines) if line.startswith('nanoid@')]
+          if len(nanoid_headers) != 1:
+              raise SystemExit(f'Expected one nanoid lock entry, found {len(nanoid_headers)}')
+          nanoid_entry = lines[nanoid_headers[0]:nanoid_headers[0] + 6]
+          if '  version "3.3.20"' not in nanoid_entry:
+              raise SystemExit('nanoid 3.3.20 is not locked')
+          print('PASS: installed and locked shell-quote 1.12.0 and nanoid 3.3.20')
+          PY
+          git diff --check
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Commit validated lockfile on isolated audit branch
+        if: github.ref == 'refs/heads/security/android-shell-quote-2026-10-29'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add yarn.lock
+          if ! git diff --cached --quiet; then
+              git commit -m 'Lock patched shell-quote 1.12.0 and nanoid 3.3.20 after validation'
+              git push origin HEAD:security/android-shell-quote-2026-10-29
+          fi
