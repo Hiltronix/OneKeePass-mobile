@@ -1,4 +1,4 @@
-use std::{fs::File, io::Seek, os::fd::IntoRawFd, path::Path};
+use std::{fs::{self, File}, io::Seek, os::fd::IntoRawFd, path::Path};
 
 use data_encoding::BASE64URL_NOPAD;
 use log::debug;
@@ -108,7 +108,15 @@ impl AndroidSupportServiceExtra {
         file_name: String,
     ) -> ApiResponse {
         log::debug!("AndroidSupportService complete_save_as_on_error is called ");
-        let mut file = unsafe { util::get_file_from_fd(file_descriptor) };
+        // Kotlin owns the provider descriptor, while Rust owns its duplicate.
+        // Early Rust errors must never close the descriptor retained by Kotlin.
+        let mut file = {
+            let borrowed = unsafe { std::os::fd::BorrowedFd::borrow_raw(file_descriptor as i32) };
+            match borrowed.try_clone_to_owned() {
+                Ok(owned) => File::from(owned),
+                Err(e) => return_api_response_failure!(e),
+            }
+        };
 
         let mut inner = || -> OkpResult<KdbxLoaded> {
             // get_last_backup_on_error should have a valid back file created
@@ -175,21 +183,22 @@ impl AndroidSupportServiceExtra {
 
         let api_response = as_api_response(inner());
 
-        {
-            log::debug!("AndroidSupportService complete_save_as_on_error: File fd_used is used  and will not be closed here");
-            // We need to transfer the ownership of the underlying file descriptor to the caller.
-            // By this call, the file instance created using incoming fd will not close the file at the end of
-            // this function (Files are automatically closed when they go out of scope) and the caller
-            // function from device will be responsible for the file closing.
-            let _fd = file.into_raw_fd();
-        }
+        // Rust's duplicated descriptor is released independently of Kotlin's.
         api_response
     }
 
     pub fn create_kdbx(&self, file_descriptor: u64, json_args: String) -> ApiResponse {
         log::debug!("AndroidSupportService create_kdbx is called ");
 
-        let mut file = unsafe { util::get_file_from_fd(file_descriptor) };
+        // Kotlin owns the provider descriptor, while Rust owns its duplicate.
+        // Early Rust errors must never close the descriptor retained by Kotlin.
+        let mut file = {
+            let borrowed = unsafe { std::os::fd::BorrowedFd::borrow_raw(file_descriptor as i32) };
+            match borrowed.try_clone_to_owned() {
+                Ok(owned) => File::from(owned),
+                Err(e) => return_api_response_failure!(e),
+            }
+        };
 
         let mut full_file_name_uri: String = String::default();
         let r = match serde_json::from_str(&json_args) {
@@ -208,7 +217,10 @@ impl AndroidSupportServiceExtra {
                 };
                 let backup_file_name =
                     backup::generate_backup_history_file_name(&full_file_name_uri, file_name);
-                let backup_file = open_backup_file(backup_file_name.as_ref());
+                // Keep unfinished encrypted files out of recovery history.
+                let temporary_backup_name =
+                    backup_file_name.as_ref().map(|name| format!("{name}.partial"));
+                let backup_file = open_backup_file(temporary_backup_name.as_ref());
 
                 let Some(mut bf_writer) = backup_file else {
                     return_api_response_failure!(
@@ -217,19 +229,37 @@ impl AndroidSupportServiceExtra {
                     //return as_api_response::<()>(Err(OkpError::DataError("Backup file could not be opened to write the new database backup")));
                 };
 
-                let r = db_service::create_and_write_to_writer(&mut bf_writer, new_db);
-                let rewind_r = bf_writer.sync_all().and(bf_writer.rewind());
-                log::debug!(
-                    "Syncing and rewinding of new db backup file result {:?}",
-                    rewind_r
-                );
+                let result = db_service::create_and_write_to_writer(&mut bf_writer, new_db)
+                    .and_then(|created| {
+                        bf_writer.sync_all()?;
+                        let expected_len = bf_writer.metadata()?.len();
+                        if expected_len < 8 {
+                            return Err(OkpError::DataError("New KDBX backup is incomplete"));
+                        }
+                        bf_writer.rewind()?;
 
-                let _n = std::io::copy(&mut bf_writer, &mut file);
-                log::debug!("Copied the backup to the new db file ");
-                // sync_all ensures the file is created and synced in case of dropbbox and one drive
-                let _ = file.sync_all();
+                        // Publish only a durable encrypted backup before copying
+                        // the database to the Android document provider.
+                        let temporary = temporary_backup_name.as_deref()
+                            .ok_or(OkpError::DataError("Temporary KDBX backup path missing"))?;
+                        let final_path = backup_file_name.as_deref()
+                            .ok_or(OkpError::DataError("Final KDBX backup path missing"))?;
+                        fs::rename(temporary, final_path)?;
 
-                r
+                        let copied = std::io::copy(&mut bf_writer, &mut file)?;
+                        if copied != expected_len {
+                            return Err(OkpError::DataError("Incomplete new KDBX copy"));
+                        }
+                        file.sync_all()?;
+                        Ok(created)
+                    });
+                drop(bf_writer);
+                if result.is_err() {
+                    if let Some(path) = temporary_backup_name.as_deref() {
+                        let _ = fs::remove_file(path);
+                    }
+                }
+                result
             }
             Ok(_) => Err(OkpError::UnexpectedError(
                 "Unexpected arguments for create_kdbx api call".into(),
@@ -237,15 +267,8 @@ impl AndroidSupportServiceExtra {
             Err(e) => Err(OkpError::UnexpectedError(format!("{:?}", e))),
         };
 
-        {
-            log::debug!("File fd_used is used and will not be closed here");
-            // We need to transfer the ownership of the underlying file descriptor to the caller.
-            // By this call, the file instance created using incoming fd will not close the file at the end of
-            // this function (Files are automatically closed when they go out of scope) and the caller
-            // function from device will be responsible for the file closing.
-            // If this is not done, android app will crash!
-            let _fd = file.into_raw_fd();
-        }
+        // The duplicated Rust descriptor closes without taking ownership of
+        // Kotlin's ParcelFileDescriptor.
 
         let api_response = match r {
             Ok(v) => match serde_json::to_string_pretty(&InvokeResult::with_ok(v)) {
