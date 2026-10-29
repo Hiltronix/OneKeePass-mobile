@@ -101,8 +101,12 @@ jobs:
         run: |
           set -uo pipefail
           mkdir -p audit-reports
+          # Yarn returns nonzero when it finds vulnerabilities. That is expected
+          # during inventory; parse and report them rather than aborting the step.
+          set +e
           yarn audit --json > audit-reports/remaining-yarn-advisories.jsonl
           status=$?
+          set -e
           echo "Audit exit code: $status"
           python3 - <<'PY'
           import json
