@@ -17,15 +17,12 @@ pub(crate) fn generate_backup_history_file_name(
     full_file_uri_str: &str,
     kdbx_file_name: &str,
 ) -> Option<String> {
-    if kdbx_file_name.trim().is_empty() {
-        return None;
-    }
+    // The display name may come from an Android document provider. Reject
+    // separators, traversal components and control characters before joining
+    // any string to the app-private recovery directory.
+    let fname_no_extension = crate::backup_filename::backup_file_stem(kdbx_file_name)?;
 
     let file_hist_root = backup_file_history_root(full_file_uri_str);
-
-    let fname_no_extension = kdbx_file_name
-        .strip_suffix(".kdbx")
-        .map_or(kdbx_file_name, |s| s);
 
     let secs = format!("{}_{}", service_util::now_utc_seconds(), uuid::Uuid::new_v4().simple());
 

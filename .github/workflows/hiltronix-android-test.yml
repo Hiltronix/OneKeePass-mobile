@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '23c216dd13eb5f82a7383cfd19e5951108a19fe9')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '037622ad215dfc788d89b636c2d511f93c1f2a9f')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -145,6 +145,20 @@ jobs:
           rustc --edition=2021 --test db-service-ffi/src/db_file_commit.rs \
             -o "$RUNNER_TEMP/kdbx-provider-tests"
           "$RUNNER_TEMP/kdbx-provider-tests"
+
+      - name: Verify untrusted SAF backup filenames cannot escape recovery directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --edition=2021 --test db-service-ffi/src/backup_filename.rs \
+            -o "$RUNNER_TEMP/kdbx-backup-path-tests"
+          "$RUNNER_TEMP/kdbx-backup-path-tests"
+          python3 - <<'PY'
+          from pathlib import Path
+          backup = Path('db-service-ffi/src/backup.rs').read_text()
+          assert 'crate::backup_filename::backup_file_stem(kdbx_file_name)?' in backup
+          print('PASS: backup history creation applies validated path-safe stems')
+          PY
 
       - name: Verify KDBX recovery is staged before SAF write access
         shell: bash
