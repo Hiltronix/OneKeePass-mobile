@@ -62,9 +62,9 @@ class BiometricService(val reactContext: ReactApplicationContext) {
                     }
 
                     override fun onAuthenticationFailed() {
+                        // Android leaves the prompt active after a nonmatching biometric.
+                        // Only success, cancellation, or a terminal error completes the promise.
                         Log.i(TAG, "onAuthenticationFailed")
-                        // super.onAuthenticationFailed()
-                        promise.resolve(DbServiceAPI.jsonService().okJsonString("AuthenticationFailed"))
                     }
 
                 })
