@@ -104,8 +104,8 @@ class PasskeyModule(reactContext: ReactApplicationContext) :
     fun getRegistrationSaveError(promise: Promise) {
         val error = PasskeyRequestStore.registrationSaveError
         PasskeyRequestStore.registrationSaveError = null
-        promise.resolve("{\"error\":\"$error\"}")
-        // promise.resolve(if (error != null) "{\"error\":\"$error\"}" else "{\"error\":null}")
+        val response = JSONObject().put("error", error ?: JSONObject.NULL)
+        promise.resolve(response.toString())
     }
 
     // Cancels PasskeyActivity with RESULT_CANCELED.
