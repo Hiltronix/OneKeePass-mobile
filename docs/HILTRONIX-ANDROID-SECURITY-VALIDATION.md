@@ -17,6 +17,8 @@ Status: NOT YET DEVICE-VERIFIED. Use only disposable KDBX files containing no re
 | ID | Test | Required result |
 | --- | --- | --- |
 | DB-01 | Create an empty KDBX with a disposable password, save, close app, reopen | Database opens and authenticates |
+| DB-01A | Force a simulated short write or fsync failure while creating a brand-new KDBX through a test SAF provider | Creation reports failure, does not register a corrupt file as a successful database, and retains only a fully serialized encrypted recovery snapshot |
+| DB-01B | Simulate a Kotlin provider close failure after native new-KDBX creation | UI does not report success if the provider fails to finalize the newly created document |
 | DB-02 | Add, edit, rename and delete entries and groups | Saves persist, UUIDs remain stable, no white/blank screen |
 | DB-03 | Add a binary attachment, save, close and reopen | Attachment is present and byte-identical |
 | DB-04 | Open the same disposable KDBX with Hiltronix OneKeePass desktop, edit, save and reopen on Android | Group/entry/attachment data interoperates without loss |
