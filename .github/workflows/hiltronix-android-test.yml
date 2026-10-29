@@ -83,6 +83,33 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Verify permanent keystore contains exactly one private signing key
+        if: ${{ env.OKP_RELEASE_BUILD == '1' }}
+        shell: bash
+        env:
+          OKP_SIGNING_B64: ${{ secrets.ONEKEYPASS_KEYSTORE_BASE64 }}
+          OKP_SIGNING_STORE_PASSWORD: ${{ secrets.ONEKEYPASS_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key_file="$RUNNER_TEMP/okp-signing-preflight.p12"
+          inventory="$RUNNER_TEMP/okp-signing-preflight.txt"
+          trap 'rm -f "$key_file" "$inventory"' EXIT
+          printf '%s' "$OKP_SIGNING_B64" | base64 --decode > "$key_file"
+          if ! keytool -list -v \
+            -keystore "$key_file" -storetype PKCS12 \
+            -storepass:env OKP_SIGNING_STORE_PASSWORD > "$inventory" 2>&1; then
+            echo "::error::Unable to read the signing keystore. Check keystore format and password."
+            exit 1
+          fi
+          private_count="$(grep -c '^Entry type: PrivateKeyEntry' "$inventory" || true)"
+          if [[ "$private_count" != '1' ]]; then
+            echo "::error::Keystore must contain exactly one PrivateKeyEntry, but found $private_count."
+            echo "::error::A certificate-only TrustedCertEntry cannot sign an APK."
+            exit 1
+          fi
+          echo 'PASS: exactly one private signing key is present in the keystore'
+
       - name: Configure Node.js
         uses: actions/setup-node@v4
         with:
@@ -479,10 +506,25 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -p -f 4 "$unsigned" "$aligned_apk"
 
           signed_apk="dist/OneKeePass-Hiltronix-Android-arm64-RELEASE.apk"
+          # Use the configured alias only when it holds the actual private key.
+          # Otherwise apksigner safely selects the sole private-key entry.
+          alias_report="$RUNNER_TEMP/okp-signer-alias.txt"
+          trap 'rm -f "$key_file" "$aligned_apk" "$alias_report"' EXIT
+          alias_args=()
+          if keytool -list -v \
+            -keystore "$key_file" -storetype PKCS12 \
+            -storepass:env OKP_SIGNING_STORE_PASSWORD \
+            -alias "$OKP_SIGNING_KEY_ALIAS" > "$alias_report" 2>&1 \
+            && grep -q '^Entry type: PrivateKeyEntry' "$alias_report"; then
+            alias_args=(--ks-key-alias "$OKP_SIGNING_KEY_ALIAS")
+          else
+            echo '::notice::Configured alias is not a private key; selecting the single private-key entry automatically.'
+          fi
+
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
             --ks "$key_file" \
             --ks-type PKCS12 \
-            --ks-key-alias "$OKP_SIGNING_KEY_ALIAS" \
+            "${alias_args[@]}" \
             --ks-pass env:OKP_SIGNING_STORE_PASSWORD \
             --key-pass env:OKP_SIGNING_KEY_PASSWORD \
             --out "$signed_apk" "$aligned_apk"
