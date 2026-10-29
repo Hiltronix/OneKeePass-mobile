@@ -22,23 +22,30 @@ The scan was intentionally performed without automatic upgrades.
 
 ## JavaScript, locked dependencies
 
-- 1,271 package dependency occurrences included in Yarn's audit.
-- 434 reported advisory occurrences, representing **87 distinct advisories**
-  across **27 package names**.
-- Unique advisory severity counts: **2 critical**, **56 high**,
-  **23 moderate**, **6 low**.
-- The report contains repeated dependency paths. Its counts do **not** mean
-  434 independent vulnerabilities in the installed Android executable.
-- The two distinct critical advisories involve `shell-quote` and
-  `babel-traverse`, primarily via React Native CLI/Babel development tooling.
-- Additional advisories touch `@xmldom/xmldom`, `sharp`, `brace-expansion`,
-  `minimatch`, `js-yaml`, `nanoid`, `picomatch`, `lodash`, and more.
-- Before changing a transitive pin, identify its parent dependencies, exact
-  fixed version and compatibility with React Native 0.85.3 and the current
-  ClojureScript/Metro bundle.
-- Differentiate code used at build-time from JavaScript or native libraries
-  actually packaged into the production APK. Build-time tooling still matters
-  to supply-chain integrity, but exposure and remediation urgency differ.
+- Initial audit: **87 distinct advisories** across **27 package names**,
+  representing 434 occurrences through dependency paths (1,271 packages).
+- After six compatible security pins, the follow-up audit at
+  https://github.com/Hiltronix/OneKeePass-mobile/actions/runs/40884754628
+  reports **60 distinct advisories** across **21 package names**.
+  **27 advisories were eliminated, with none newly introduced.**
+- Remaining distinct severity counts: **1 critical**, **35 high**,
+  **18 moderate**, **6 low**.
+- Remaining repeated-path occurrence counts: **2 critical**, **189 high**,
+  **85 moderate**, **66 low**, totaling **342**. These are not equivalent
+  to 342 exploitable flaws in the installed Android binary.
+- Fixed and CI-tested: `shell-quote 1.12.0`, `nanoid 3.3.20`,
+  `@xmldom/xmldom 0.8.15`,
+  `@babel/plugin-transform-modules-systemjs 7.29.4`,
+  `browserslist 4.28.7`, `launch-editor 2.14.2`.
+- The remaining critical advisory affects legacy `babel-traverse 6.26.0`,
+  pulled in through `@cljs-oss/module-deps` for build-time transformations.
+  The registry advisory lists no practical same-major patched version.
+  Its reachable inputs and migration feasibility must be assessed before a
+  breaking compiler replacement.
+- Other unresolved advisories involve `sharp`, `brace-expansion`,
+  `minimatch`, `js-yaml`, `picomatch`, `lodash` and other packages.
+  Prioritize packages actually bundled into the APK or used with untrusted
+  sources in the build environment.
 
 ## Gradle and native Android dependencies
 

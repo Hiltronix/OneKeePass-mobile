@@ -1,0 +1,156 @@
+name: Hiltronix transitive dependency fix validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['security/android-dependency-hardening-2026-10-29']
+    paths:
+      - package.json
+      - yarn.lock
+      - '.github/workflows/hiltronix-dependency-fix-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-and-validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out isolated security audit branch
+        uses: actions/checkout@v4
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Yarn Classic
+        run: npm install --global yarn@1.22.22
+
+      - name: Resolve, install and test patched dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          yarn install --frozen-lockfile --non-interactive
+          node <<'JS'
+          const assert = require('assert');
+          const expected = {
+              '@babel/plugin-transform-modules-systemjs': '7.29.4',
+              '@xmldom/xmldom': '0.8.15',
+              'browserslist': '4.28.7',
+              'launch-editor': '2.14.2',
+              'nanoid': '3.3.20',
+              'shell-quote': '1.12.0'
+          };
+          for (const [name, version] of Object.entries(expected)) {
+              assert.strictEqual(require(name + '/package.json').version, version, name);
+          }
+          const { DOMParser } = require('@xmldom/xmldom');
+          const doc = new DOMParser().parseFromString('<root><name>test</name></root>', 'text/xml');
+          assert.strictEqual(doc.getElementsByTagName('name')[0].textContent, 'test');
+          const browserslist = require('browserslist');
+          assert.ok(browserslist('last 1 Chrome version').length >= 1);
+          const quote = require('shell-quote');
+          assert.strictEqual(quote.parse('echo testing').join(' '), 'echo testing');
+          const { nanoid } = require('nanoid');
+          assert.strictEqual(nanoid().length, 21);
+          const babel = require('@babel/core');
+          const result = babel.transformSync('export const answer = 42;', {
+              configFile: false,
+              babelrc: false,
+              plugins: ['@babel/plugin-transform-modules-systemjs']
+          });
+          assert.ok(result.code.includes('System.register'));
+          console.log('PASS: patched toolchain modules load and pass compatibility smoke tests');
+          JS
+
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+
+          expected = {
+              '@babel/plugin-transform-modules-systemjs': '7.29.4',
+              '@xmldom/xmldom': '0.8.15',
+              'browserslist': '4.28.7',
+              'launch-editor': '2.14.2',
+              'nanoid': '3.3.20',
+              'shell-quote': '1.12.0'
+          }
+          data = json.loads(Path('package.json').read_text())
+          assert data['resolutions'].items() >= expected.items()
+          lines = Path('yarn.lock').read_text().splitlines()
+          for name, version in expected.items():
+              positions = [
+                  index for index, line in enumerate(lines)
+                  if line.startswith(name + '@') or line.startswith('"' + name + '@')
+              ]
+              if len(positions) != 1:
+                  raise SystemExit(f'{name}: expected one lock entry, found {len(positions)}')
+              if f'  version "{version}"' not in lines[positions[0]:positions[0] + 5]:
+                  raise SystemExit(f'{name}: wrong locked version, expected {version}')
+          print('PASS: six dependency resolutions match the lockfile')
+          PY
+
+          git diff --check
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Measure remaining advisory exposure
+        if: success()
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p audit-reports
+          # Yarn returns nonzero when it finds vulnerabilities. That is expected
+          # during inventory; parse and report them rather than aborting the step.
+          set +e
+          yarn audit --json > audit-reports/remaining-yarn-advisories.jsonl
+          status=$?
+          set -e
+          echo "Audit exit code: $status"
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          path = Path('audit-reports/remaining-yarn-advisories.jsonl')
+          advisories = {}
+          summary = {}
+          for raw in path.read_text().splitlines():
+              try:
+                  item = json.loads(raw)
+              except json.JSONDecodeError:
+                  continue
+              if item.get('type') == 'auditAdvisory':
+                  advisory = item['data']['advisory']
+                  advisories[advisory['id']] = advisory
+              elif item.get('type') == 'auditSummary':
+                  summary = item['data']
+          severities = Counter(v['severity'] for v in advisories.values())
+          report = {
+              'distinct_advisories': len(advisories),
+              'severity': dict(severities),
+              'reported_occurrences': summary.get('vulnerabilities', {}),
+              'affected_modules': sorted({v['module_name'] for v in advisories.values()}),
+              'critical': [
+                  {'id': v['id'], 'module': v['module_name'], 'title': v['title']}
+                  for v in advisories.values() if v['severity'] == 'critical'
+              ]
+          }
+          Path('audit-reports/remaining-advisories-summary.json').write_text(
+              json.dumps(report, indent=2) + '\n'
+          )
+          print(json.dumps(report, indent=2))
+          if not summary:
+              raise SystemExit('Advisory scan did not return a summary; check registry availability')
+          PY
+
+      - name: Upload remaining advisory report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hiltronix-Android-patched-yarn-audit-${{ github.run_number }}
+          path: audit-reports/
+          retention-days: 30
+          if-no-files-found: error
+
