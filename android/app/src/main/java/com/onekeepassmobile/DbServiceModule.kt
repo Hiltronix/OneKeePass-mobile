@@ -281,14 +281,12 @@ class DbServiceModule(reactContext: ReactApplicationContext) :
                     resolveResponse(response, promise)
                     */
 
-                    // Rust side the file should not be closed. So fd.detachFd() is not used.
-                    // if we use fd.detachFd(), then 'create db file' for google drive did not work
-                    val response = DbServiceAPI.createKdbx(fd.fd.toULong(), args);
+                    // Rust duplicates the descriptor and owns only its copy.
+                    // Some document providers commit data only when Kotlin closes it.
+                    val response = fd.use { descriptor ->
+                        DbServiceAPI.createKdbx(descriptor.fd.toULong(), args)
+                    }
                     resolveResponse(response, promise)
-                    // IMPORTANT:
-                    // The caller is responsible for closing the file using its file descriptor
-                    // as the file is not yet closed
-                    fd.close()
 
                 } else {
                     // Do we need to ask the user select the kdbx again to read ?
