@@ -140,8 +140,8 @@ object OkpFillResponseBuilder {
     private fun buildDataSet(packageContext: Context, parsedAutofillRequest: ParsedAutofillRequest): Dataset {
 
         val authPresentation = RemoteViewsHelper.overlayPresentation(packageContext.packageName)
-        val authIntent = Intent("com.onekeepass.action.AF_LOGIN").apply {
-            // Send any additional data required to complete the request
+        val authIntent = Intent(packageContext, AutofillAuthenticationActivity::class.java).apply {
+            // Target the private authentication activity explicitly.
             putExtra("AF_LOGIN_DATA_SET", "AF_LOGIN_DATA_SET")
         }
 

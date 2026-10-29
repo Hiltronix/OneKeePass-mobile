@@ -73,11 +73,11 @@ object PasskeyRequestStore {
         requestJson: String,
         providedClientDataHash: ByteArray?
     ) {
-        currentMode = PasskeyActivity.MODE_ASSERTION
-        assertionEntryUuid = entryUuid
-        assertionDbKey = dbKey
-
+        clear()
         try {
+            currentMode = PasskeyActivity.MODE_ASSERTION
+            assertionEntryUuid = entryUuid
+            assertionDbKey = dbKey
             val json = JSONObject(requestJson)
             val challenge = json.optString("challenge", "")
             assertionRpId = json.optString("rpId", "")
@@ -119,6 +119,7 @@ object PasskeyRequestStore {
                 )
             }
         } catch (e: Exception) {
+            clear()
             Log.e(TAG, "storeAssertionContext parse error")
         }
     }
@@ -129,9 +130,9 @@ object PasskeyRequestStore {
         requestJson: String,
         providedClientDataHash: ByteArray?
     ) {
-        currentMode = PasskeyActivity.MODE_REGISTRATION
-
+        clear()
         try {
+            currentMode = PasskeyActivity.MODE_REGISTRATION
             val json = JSONObject(requestJson)
             val challenge = json.optString("challenge", "")
             val rp = json.optJSONObject("rp")
@@ -181,6 +182,7 @@ object PasskeyRequestStore {
                 )
             }
         } catch (e: Exception) {
+            clear()
             Log.e(TAG, "storeRegistrationContext parse error")
         }
     }
