@@ -57,6 +57,23 @@ jobs:
           fi
           echo "OKP_RELEASE_VERSION_CODE=$((1000000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
+      - name: Check permanent signing secrets exist before compiling
+        if: ${{ env.OKP_RELEASE_BUILD == '1' }}
+        shell: bash
+        env:
+          KEYSTORE_PRESENT: ${{ secrets.OKP_KEYSTORE_BASE64 != '' }}
+          STORE_PASSWORD_PRESENT: ${{ secrets.OKP_KEYSTORE_PASSWORD != '' }}
+          KEY_ALIAS_PRESENT: ${{ secrets.OKP_KEY_ALIAS != '' }}
+          KEY_PASSWORD_PRESENT: ${{ secrets.OKP_KEY_PASSWORD != '' }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_PRESENT STORE_PASSWORD_PRESENT KEY_ALIAS_PRESENT KEY_PASSWORD_PRESENT; do
+            if [[ "${!name}" != 'true' ]]; then
+              echo "::error::Required OKP signing secret is missing: $name"
+              exit 1
+            fi
+          done
+
       - name: Configure Java
         uses: actions/setup-java@v4
         with:
