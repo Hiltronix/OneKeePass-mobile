@@ -39,15 +39,18 @@ jobs:
     env:
       OKP_FOSS_BUILD: '1'
       OKP_TEST_BUILD: '1'
-      OKP_RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_release == true && github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && '1' || '0' }}
+      # The push exception below is intentionally single-use: only the push
+      # directly following the reviewed commit can use the permanent key.
+      # Future pushes return to disposable-test-only signing.
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == 'f5e80beca9ae2dff9f611b22e5cd08645274f9d9')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
       - name: Check out Hiltronix Android source
         uses: actions/checkout@v4
 
-      - name: Restrict permanent signing to an explicit manual security-branch run
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_release == true }}
+      - name: Validate explicit release or one-time authorized signing trigger
+        if: ${{ env.OKP_RELEASE_BUILD == '1' }}
         shell: bash
         run: |
           set -euo pipefail
