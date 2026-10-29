@@ -28,6 +28,14 @@ as **repository Actions secrets** (not workflow variables):
 then check **Sign a permanent Hiltronix APK with the repository keystore secrets**.
 The signing step is unavailable on automated pushes, other branches and pull requests.
 
+If GitHub's web UI does not show the branch-specific `sign_release` checkbox,
+trigger the exact branch and input using GitHub CLI (after `gh auth login`):
+
+```powershell
+gh workflow run hiltronix-android-test.yml --repo Hiltronix/OneKeePass-mobile --ref security/android-logging-crypto-2026-10-28 -f sign_release=true
+```
+
+
 GitHub builds the unsigned APK, runs the existing security, KDBX recovery and
 permission checks, verifies that dependency locks did not change, then signs
 the APK with `apksigner` using the secrets only in the final signing step.
