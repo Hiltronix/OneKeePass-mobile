@@ -18,10 +18,10 @@ as **repository Actions secrets** (not workflow variables):
 
 | GitHub secret | Required content |
 |---|---|
-| `OKP_KEYSTORE_BASE64` | Base64 encoding of the complete permanent PKCS12 keystore |
-| `OKP_KEYSTORE_PASSWORD` | Keystore password |
-| `OKP_KEY_ALIAS` | Alias of the certificate/private key within the keystore |
-| `OKP_KEY_PASSWORD` | Private-key password (often the same as the PKCS12 store password) |
+| `ONEKEYPASS_KEYSTORE_BASE64` | Base64 encoding of the complete permanent PKCS12 keystore |
+| `ONEKEYPASS_KEYSTORE_PASSWORD` | Keystore password |
+| `ONEKEYPASS_KEY_ALIAS` | Alias of the certificate/private key within the keystore |
+| `ONEKEYPASS_KEY_PASSWORD` | Private-key password (often the same as the PKCS12 store password) |
 
 **To build with that key:** Open GitHub Actions > **Hiltronix Android ARM64 test APK**
 > **Run workflow**. Select branch `security/android-logging-crypto-2026-10-28`,
