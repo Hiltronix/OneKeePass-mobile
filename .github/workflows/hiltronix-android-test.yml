@@ -7,6 +7,12 @@ concurrency:
 
 on:
   workflow_dispatch:
+    inputs:
+      sign_release:
+        description: 'Sign a permanent Hiltronix APK with the repository keystore secrets'
+        type: boolean
+        required: true
+        default: false
   push:
     branches: [main, 'security/android-logging-crypto-2026-10-28']
     paths:
@@ -33,11 +39,23 @@ jobs:
     env:
       OKP_FOSS_BUILD: '1'
       OKP_TEST_BUILD: '1'
+      OKP_RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_release == true && github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
       - name: Check out Hiltronix Android source
         uses: actions/checkout@v4
+
+      - name: Restrict permanent signing to an explicit manual security-branch run
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_release == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != 'refs/heads/security/android-logging-crypto-2026-10-28' ]]; then
+            echo "::error::Permanent signing is only allowed on the approved Android security branch"
+            exit 1
+          fi
+          echo "OKP_RELEASE_VERSION_CODE=$((1000000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
       - name: Configure Java
         uses: actions/setup-java@v4
@@ -141,21 +159,25 @@ jobs:
 
           # Refresh the pinned core and dependencies in Cargo.lock without
           # modifying the database format, algorithms or feature selection.
-          cargo update --manifest-path "$manifest" -p onekeepass-core
+          if [[ "$OKP_RELEASE_BUILD" != '1' ]]; then
+            cargo update --manifest-path "$manifest" -p onekeepass-core
+          fi
 
           # Update the older RC-era arithmetic dependencies where present.
-          for change in 'crypto-bigint|0.7.5|0.7.10' 'ctutils|0.4.2|0.4.4'; do
-            IFS='|' read -r name old new <<< "$change"
-            if python3 - "$name" "$old" <<'PY'
+          if [[ "$OKP_RELEASE_BUILD" != '1' ]]; then
+            for change in 'crypto-bigint|0.7.5|0.7.10' 'ctutils|0.4.2|0.4.4'; do
+              IFS='|' read -r name old new <<< "$change"
+              if python3 - "$name" "$old" <<'PY'
           import sys, tomllib
           with open("db-service-ffi/Cargo.lock", "rb") as f:
               packages = tomllib.load(f)["package"]
           sys.exit(0 if any(p["name"] == sys.argv[1] and p["version"] == sys.argv[2] for p in packages) else 1)
           PY
-            then
-              cargo update --manifest-path "$manifest" -p "$name@$old" --precise "$new"
-            fi
-          done
+              then
+                cargo update --manifest-path "$manifest" -p "$name@$old" --precise "$new"
+              fi
+            done
+          fi
 
           python3 - <<'PY'
           import sys, tomllib
@@ -319,6 +341,16 @@ jobs:
         shell: bash
         run: bash scripts/build-android-foss.sh
 
+      - name: Verify signed release will use only reviewed lockfiles
+        if: ${{ env.OKP_RELEASE_BUILD == '1' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- db-service-ffi/Cargo.lock yarn.lock; then
+            echo "::error::Release dependency locks changed during build. Commit and review them first."
+            exit 1
+          fi
+
       - name: Sign temporary test APK, verify and record hashes
         shell: bash
         run: |
@@ -398,7 +430,81 @@ jobs:
           PY
           echo "PASS: no internet, network state, or camera permission/feature in release APK"
 
+      - name: Sign verified production APK with permanent Hiltronix key
+        if: ${{ env.OKP_RELEASE_BUILD == '1' }}
+        shell: bash
+        env:
+          OKP_SIGNING_B64: ${{ secrets.OKP_KEYSTORE_BASE64 }}
+          OKP_SIGNING_STORE_PASSWORD: ${{ secrets.OKP_KEYSTORE_PASSWORD }}
+          OKP_SIGNING_KEY_ALIAS: ${{ secrets.OKP_KEY_ALIAS }}
+          OKP_SIGNING_KEY_PASSWORD: ${{ secrets.OKP_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          for variable in OKP_SIGNING_B64 OKP_SIGNING_STORE_PASSWORD OKP_SIGNING_KEY_ALIAS OKP_SIGNING_KEY_PASSWORD; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "::error::Missing Android signing secret: $variable"
+              exit 1
+            fi
+          done
+
+          key_file="$RUNNER_TEMP/okp-hiltronix-signing.p12"
+          aligned_apk="$RUNNER_TEMP/okp-hiltronix-release-aligned.apk"
+          trap 'rm -f "$key_file" "$aligned_apk"' EXIT
+
+          printf '%s' "$OKP_SIGNING_B64" | base64 --decode > "$key_file"
+          unsigned="android/app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk"
+          test -s "$unsigned"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -p -f 4 "$unsigned" "$aligned_apk"
+
+          signed_apk="dist/OneKeePass-Hiltronix-Android-arm64-RELEASE.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$key_file" \
+            --ks-type PKCS12 \
+            --ks-key-alias "$OKP_SIGNING_KEY_ALIAS" \
+            --ks-pass env:OKP_SIGNING_STORE_PASSWORD \
+            --key-pass env:OKP_SIGNING_KEY_PASSWORD \
+            --out "$signed_apk" "$aligned_apk"
+
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify \
+            --verbose --print-certs "$signed_apk" > dist/RELEASE-SIGNATURE.txt
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$signed_apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$signed_apk" \
+            > dist/RELEASE-BADGING.txt
+          grep -q "^package: name='com.onekeepassmobile.hiltronix' versionCode='$OKP_RELEASE_VERSION_CODE'" \
+            dist/RELEASE-BADGING.txt
+
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$signed_apk" \
+            > dist/RELEASE-PERMISSIONS.txt
+          cmp -s dist/APK-PERMISSIONS.txt dist/RELEASE-PERMISSIONS.txt || {
+            echo "::error::Signed APK permissions differ from reviewed test APK"
+            exit 1
+          }
+          sha256sum "$signed_apk" > dist/RELEASE-SHA256SUMS.txt
+          printf 'Source commit: %s\nBuild number: %s\nPackage: %s\nVersion code: %s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" 'com.onekeepassmobile.hiltronix' \
+            "$OKP_RELEASE_VERSION_CODE" > dist/RELEASE-BUILD-INFO.txt
+          echo 'PASS: permanent signature verified; signed APK package and permissions validated'
+          cat dist/RELEASE-SHA256SUMS.txt
+
+      - name: Upload manually signed Hiltronix release APK
+        if: ${{ env.OKP_RELEASE_BUILD == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hiltronix-Android-arm64-SIGNED-${{ github.run_number }}
+          path: |
+            dist/OneKeePass-Hiltronix-Android-arm64-RELEASE.apk
+            dist/RELEASE-SIGNATURE.txt
+            dist/RELEASE-BADGING.txt
+            dist/RELEASE-PERMISSIONS.txt
+            dist/RELEASE-SHA256SUMS.txt
+            dist/RELEASE-BUILD-INFO.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload Android test APK
+        if: ${{ env.OKP_RELEASE_BUILD != '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: Hiltronix-Android-arm64-TEST-${{ github.run_number }}
@@ -410,7 +516,7 @@ jobs:
       # Only persist an updated lock after all source, security, build, and
       # signing checks have succeeded.
       - name: Commit validated Android Rust and JavaScript lockfiles to isolated security branch
-        if: github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28'
+        if: github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && env.OKP_RELEASE_BUILD != '1'
         shell: bash
         run: |
           set -euo pipefail
