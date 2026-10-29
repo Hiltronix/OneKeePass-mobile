@@ -1,0 +1,105 @@
+name: Hiltronix Android dependency advisories
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['security/android-logging-crypto-2026-10-28']
+    paths:
+      - '.github/workflows/hiltronix-android-dependency-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: RustSec and JavaScript vulnerability inventory
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out reviewed Android security branch
+        uses: actions/checkout@v4
+
+      - name: Configure Rust 1.91
+        shell: bash
+        run: |
+          rustup toolchain install 1.91.0 --profile minimal
+          rustup default 1.91.0
+
+      - name: Install RustSec cargo-audit
+        shell: bash
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
+      - name: Audit locked Rust dependency graph
+        id: rust
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mkdir -p audit-reports
+          cargo audit --file db-service-ffi/Cargo.lock --json > audit-reports/rustsec.json
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          echo "RustSec audit exit status: $status"
+          exit "$status"
+
+      - name: Configure Node.js and Yarn Classic
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Yarn Classic
+        shell: bash
+        run: npm install --global yarn@1.22.22
+
+      - name: Audit JavaScript dependency tree without installing packages
+        id: javascript
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mkdir -p audit-reports
+          yarn audit --json > audit-reports/yarn-audit.jsonl
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          echo "Yarn audit exit status: $status"
+          exit "$status"
+
+      - name: Record dependency audit outcome
+        if: always()
+        shell: bash
+        env:
+          RUST_OUTCOME: ${{ steps.rust.outcome }}
+          JS_OUTCOME: ${{ steps.javascript.outcome }}
+          RUST_STATUS: ${{ steps.rust.outputs.exit_code }}
+          JS_STATUS: ${{ steps.javascript.outputs.exit_code }}
+        run: |
+          mkdir -p audit-reports
+          {
+            printf 'Commit: %s\n' "$GITHUB_SHA"
+            printf 'RustSec step: %s (exit %s)\n' "$RUST_OUTCOME" "$RUST_STATUS"
+            printf 'Yarn step: %s (exit %s)\n' "$JS_OUTCOME" "$JS_STATUS"
+            printf 'A nonzero audit result needs triage; it may be an advisory or a registry/tool error.\n'
+            printf 'Gradle/Android AAR dependency scanning is not covered by these two tools.\n'
+          } > audit-reports/SUMMARY.txt
+          cat audit-reports/SUMMARY.txt
+
+      - name: Upload advisory reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hiltronix-Android-dependency-audit-${{ github.run_number }}
+          path: audit-reports/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Flag unresolved audit findings
+        if: always()
+        shell: bash
+        env:
+          RUST_OUTCOME: ${{ steps.rust.outcome }}
+          JS_OUTCOME: ${{ steps.javascript.outcome }}
+        run: |
+          if [[ "$RUST_OUTCOME" != 'success' || "$JS_OUTCOME" != 'success' ]]; then
+            echo "::warning::Review the uploaded RustSec and Yarn advisory reports before approving a release."
+            exit 1
+          fi
