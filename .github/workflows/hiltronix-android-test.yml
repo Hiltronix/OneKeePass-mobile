@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == 'e8b2cb63c7fc848dd2a62a44a4fdb95fc076780f')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '2d633c642bc98b2a0498b6e6b0aa42d5e323d93e')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -382,6 +382,52 @@ jobs:
           assert "otp-url-received" in (base / "core.cljs").read_text()
           assert not Path("foss-stubs/react-native-vision-camera.js").exists()
           print("PASS: no camera library or scanner UI; external otpauth:// TOTP entry retained")
+          PY
+
+      - name: Verify internal authentication entry points are private
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+
+          namespace = '{http://schemas.android.com/apk/res/android}'
+          root = ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
+          application = root.find('application')
+          assert application is not None
+          assert application.get(namespace + 'allowBackup') == 'false'
+
+          activities = {a.get(namespace + 'name'): a for a in application.findall('activity')}
+          autofill = activities['.autofill.AutofillAuthenticationActivity']
+          assert autofill.get(namespace + 'exported') == 'false'
+          assert autofill.findall('intent-filter') == []
+          assert activities['.passkey.PasskeyActivity'].get(namespace + 'exported') == 'false'
+
+          services = {s.get(namespace + 'name'): s for s in application.findall('service')}
+          assert services['.autofill.AuthenticatedAutofillService'].get(namespace + 'permission') == 'android.permission.BIND_AUTOFILL_SERVICE'
+          assert services['.passkey.PasskeyProviderService'].get(namespace + 'permission') == 'android.permission.BIND_CREDENTIAL_PROVIDER_SERVICE'
+          provider = application.find('provider')
+          assert provider is not None and provider.get(namespace + 'exported') == 'false'
+
+          source = Path('android/app/src/main/java/com/onekeepassmobile')
+          builder = (source / 'autofill/OkpFillResponseBuilder.kt').read_text()
+          assert 'Intent(packageContext, AutofillAuthenticationActivity::class.java)' in builder
+          assert 'PendingIntent.FLAG_IMMUTABLE' in builder
+          assert 'Intent("com.onekeepass.action.AF_LOGIN")' not in builder
+
+          passkey = (source / 'passkey/PasskeyRequestStore.kt').read_text()
+          assert passkey.count('Log.e(TAG, "storeAssertionContext parse error")') == 1
+          assert passkey.count('Log.e(TAG, "storeRegistrationContext parse error")') == 1
+          assert 'clear()\n            Log.e(TAG, "storeAssertionContext parse error")' in passkey
+          assert 'clear()\n            Log.e(TAG, "storeRegistrationContext parse error")' in passkey
+          passkey_module = (source / 'passkey/PasskeyModule.kt').read_text()
+          assert 'JSONObject().put("error", error ?: JSONObject.NULL)' in passkey_module
+
+          biometric = (source / 'BiometricService.kt').read_text()
+          failure = biometric.split('override fun onAuthenticationFailed()', 1)[1].split('})', 1)[0]
+          assert 'promise.resolve(' not in failure
+          print('PASS: private authentication activity, explicit Autofill PendingIntent and fail-closed passkey state')
           PY
 
       - name: Compile unsigned Android release APK
