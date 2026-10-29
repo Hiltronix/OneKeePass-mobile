@@ -164,7 +164,24 @@ jobs:
           assert 'crate::db_file_commit::copy_staged_kdbx_to_provider' in rust
           assert 'Creating encrypted KDBX backup failed; save aborted' in rust
           assert 'AppState::add_last_backup_name_on_error(&db_key, path)' in rust
-          print("PASS: KDBX stage, SAF open mode, copy errors, and recovery paths")
+
+          # New database creation must reject partial writes and only
+          # acknowledge completion after the provider descriptor closes.
+          create = module.split('fun createKdbx(', 1)[1].split('fun completeSaveAsOnError(', 1)[0]
+          assert 'val response = fd.use { descriptor ->' in create
+          assert create.index('val response = fd.use') < create.index('resolveResponse(response, promise)')
+          native = Path('db-service-ffi/src/android/support_services.rs').read_text()
+          create_native = native.split('pub fn create_kdbx(', 1)[1].split('pub fn save_key_file(', 1)[0]
+          assert 'try_clone_to_owned()' in create_native
+          assert 'format!("{name}.partial")' in create_native
+          assert 'bf_writer.sync_all()?' in create_native
+          assert 'fs::rename(temporary, final_path)?' in create_native
+          assert 'let copied = std::io::copy(&mut bf_writer, &mut file)?' in create_native
+          assert 'if copied != expected_len' in create_native
+          assert 'file.sync_all()?' in create_native
+          assert 'let _n = std::io::copy' not in create_native
+          assert 'let _ = file.sync_all()' not in create_native
+          print("PASS: KDBX staged save and checked creation paths")
           PY
 
       - name: Configure native toolchain prerequisites
