@@ -50,6 +50,13 @@ class AutofillAuthenticationActivity() : ReactActivity() {
         super.onCreate(savedInstanceState)
     }
 
+    override fun onDestroy() {
+        if (autofillActivity === this) {
+            autofillActivity = null
+        }
+        super.onDestroy()
+    }
+
     companion object {
         //private val TAG = "AutofillAuthenticationActivity"
         private val TAG = "OkpAF AutofillAuthenticationActivity"
