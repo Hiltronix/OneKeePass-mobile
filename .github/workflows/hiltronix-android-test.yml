@@ -146,6 +146,20 @@ jobs:
             -o "$RUNNER_TEMP/kdbx-provider-tests"
           "$RUNNER_TEMP/kdbx-provider-tests"
 
+      - name: Verify untrusted SAF backup filenames cannot escape recovery directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --edition=2021 --test db-service-ffi/src/backup_filename.rs \
+            -o "$RUNNER_TEMP/kdbx-backup-path-tests"
+          "$RUNNER_TEMP/kdbx-backup-path-tests"
+          python3 - <<'PY'
+          from pathlib import Path
+          backup = Path('db-service-ffi/src/backup.rs').read_text()
+          assert 'crate::backup_filename::backup_file_stem(kdbx_file_name)?' in backup
+          print('PASS: backup history creation applies validated path-safe stems')
+          PY
+
       - name: Verify KDBX recovery is staged before SAF write access
         shell: bash
         run: |
