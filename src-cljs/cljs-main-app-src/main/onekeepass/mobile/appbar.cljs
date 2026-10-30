@@ -190,9 +190,6 @@
       [rnp-menu-item {:title (lstr-ml "mergeDatabases")
                       :disabled  @(cmn-events/current-db-disable-edit)
                       :onPress (header-menu-action merging-events/merging-databases-page)}]
-      [rnp-menu-item {:title (lstr-ml "checkRemoteChanges")
-                      :disabled (not (cmn-events/remote-db-key? @(cmn-events/active-db-key)))
-                      :onPress (header-menu-action ext-change-events/manual-check-remote-changes)}]
       [cust-rnp-divider]
       [rnp-menu-item {:title (lstr-ml "settings")
                       :onPress (header-menu-action stgs-events/load-db-settings)}]]
