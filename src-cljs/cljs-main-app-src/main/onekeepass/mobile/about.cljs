@@ -17,12 +17,12 @@
 ;; Hiltronix's source revision is distinct from the upstream OneKeePass
 ;; version and from the GitHub Actions build number. Update for each
 ;; released set of customizations.
-(def hiltronix-revision "2026-10-29-1")
+(def hiltronix-revision "2026-10-30-1")
 
 (defn link-text [url & opts]
   [rnp-text {:style (merge {:margin-left 5
                             :textDecorationLine "underline"
-                            :color @rnc/primary-color} opts)
+                            :color @rnc/secondary-color} opts)
              :onPress #(cmn-events/open-https-url url)}
    url])
 
@@ -57,9 +57,9 @@
                      :justify-content "center" :align-items "center"}}
     [rnp-text  {:style {:color @rnc/tertiary-color}
                 :variant "headlineLarge"} "OneKeePass"]
-    [rnp-text {:style {:color @rnc/primary-color}
+    [rnp-text {:style {:color @rnc/secondary-color}
                :variant "headlineSmall"} app-version]
-    [rnp-text {:style {:color @rnc/primary-color
+    [rnp-text {:style {:color @rnc/secondary-color
                        :margin-top 6}
                :variant "bodyMedium"}
      (str "Hiltronix Revision: " hiltronix-revision)]]
