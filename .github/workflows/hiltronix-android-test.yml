@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '03c00c5496ecc2d8d05e55eadfbe5b16658e3dfb')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '597fd6a1c2efc1e91b013532718be2e1f20eac3d')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -469,6 +469,27 @@ jobs:
           if '(header-menu-action stgs-events/load-db-settings)' not in appbar:
               raise SystemExit('Database Settings menu was unexpectedly removed')
           print('PASS: no orphaned remote-change handler; local menus preserved')
+          PY
+
+      - name: Verify Hiltronix revision is displayed on shared About screen
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('src-cljs/cljs-main-app-src/main/onekeepass/mobile')
+          about = (root / 'about.cljs').read_text()
+          appbar = (root / 'appbar.cljs').read_text()
+          revision = re.search(r'\(def hiltronix-revision "([0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+)"\)', about)
+          assert revision, 'Hiltronix source revision is missing'
+          assert '(str "Hiltronix Revision: " hiltronix-revision)' in about
+          assert about.index('app-version]') < about.index('(str "Hiltronix Revision: "')
+          assert '(defn about-content []' in about
+          assert '[about-content]' in appbar
+          assert ':onPress (header-menu-action cmn-events/to-about-page)' in appbar
+          print('PASS: shared About page shows Hiltronix Revision ' + revision.group(1))
           PY
 
       - name: Compile unsigned Android release APK
