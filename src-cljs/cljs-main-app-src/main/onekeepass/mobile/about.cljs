@@ -14,6 +14,11 @@
 
 (def app-version "v0.24.0")
 
+;; Hiltronix's source revision is distinct from the upstream OneKeePass
+;; version and from the GitHub Actions build number. Update for each
+;; released set of customizations.
+(def hiltronix-revision "2026-10-29-1")
+
 (defn link-text [url & opts]
   [rnp-text {:style (merge {:margin-left 5
                             :textDecorationLine "underline"
@@ -53,7 +58,11 @@
     [rnp-text  {:style {:color @rnc/tertiary-color}
                 :variant "headlineLarge"} "OneKeePass"]
     [rnp-text {:style {:color @rnc/primary-color}
-               :variant "headlineSmall"} app-version]]
+               :variant "headlineSmall"} app-version]
+    [rnp-text {:style {:color @rnc/primary-color
+                       :margin-top 6}
+               :variant "bodyMedium"}
+     (str "Hiltronix Revision: " hiltronix-revision)]]
 
    [rn-view {:style {:margin-top 50
                      :align-items "center"
