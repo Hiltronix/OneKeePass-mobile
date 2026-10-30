@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == 'f45db2d0f04f1b6512152a8f71a793da549227e7')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '03c00c5496ecc2d8d05e55eadfbe5b16658e3dfb')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -440,6 +440,35 @@ jobs:
           failure = biometric.split('override fun onAuthenticationFailed()', 1)[1].split('})', 1)[0]
           assert 'promise.resolve(' not in failure
           print('PASS: private authentication activity, explicit Autofill PendingIntent and fail-closed passkey state')
+          PY
+
+      - name: Reject orphaned external-change references in database UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('src-cljs/cljs-main-app-src/main/onekeepass/mobile')
+          source_files = list(root.rglob('*.cljs')) + list(root.rglob('*.cljc'))
+          if not source_files:
+              raise SystemExit('Missing ClojureScript source tree')
+
+          forbidden = ('ext-change-events/', 'ext_change_events',
+                       'manual-check-remote-changes')
+          found = [
+              (str(path), token) for path in source_files
+              for token in forbidden if token in path.read_text()
+          ]
+          if found:
+              raise SystemExit(f'Stale deleted remote-change handler references: {found}')
+
+          appbar = (root / 'appbar.cljs').read_text()
+          if '(header-menu-action merging-events/merging-databases-page)' not in appbar:
+              raise SystemExit('Local Merge Databases menu was unexpectedly removed')
+          if '(header-menu-action stgs-events/load-db-settings)' not in appbar:
+              raise SystemExit('Database Settings menu was unexpectedly removed')
+          print('PASS: no orphaned remote-change handler; local menus preserved')
           PY
 
       - name: Compile unsigned Android release APK
