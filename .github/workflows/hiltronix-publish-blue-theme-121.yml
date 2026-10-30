@@ -1,0 +1,123 @@
+name: Publish verified Hiltronix OneKeePass blue-theme APK
+
+# One-time publisher. Publishes the already verified signed APK; no build or resigning.
+on:
+  push:
+    branches:
+      - security/android-logging-crypto-2026-10-28
+    paths:
+      - '.github/workflows/hiltronix-publish-blue-theme-121.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ github.repository == 'Hiltronix/OneKeePass-mobile' && github.event.before == 'a90a28a2e3d7fe36eda1fa0b629d41f9ff816d03' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: Hiltronix/OneKeePass-mobile
+      BUILD_RUN: '41053439137'
+      BUILD_SHA: 'a90a28a2e3d7fe36eda1fa0b629d41f9ff816d03'
+      ARTIFACT: 'Hiltronix-Android-arm64-SIGNED-121'
+      RELEASE_TAG: 'android-v0.24.0-hiltronix-rev-2026-10-30-1'
+      APK_SHA256: '619d05331497e0223cf0b8360f39428bc2205390d15063cf4b6d9d0c63139ff1'
+      CERT_SHA256: 'cf3d93c795fb09dc63d8d66fcfb568f833024d4826be71f70b1b1b5dcd6284e3'
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch signed build 121
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$BUILD_SHA" HEAD
+          mkdir -p "$RUNNER_TEMP/signed" "$RUNNER_TEMP/release"
+          gh run download "$BUILD_RUN" --repo "$REPO" --name "$ARTIFACT" --dir "$RUNNER_TEMP/signed"
+
+      - name: Verify exact APK bytes and signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/signed"
+          apk="$dir/OneKeePass-Hiltronix-Android-arm64-RELEASE.apk"
+          test -s "$apk"
+          test "$(sha256sum "$apk" | cut -d ' ' -f 1)" = "$APK_SHA256"
+          test "$(cut -d ' ' -f 1 "$dir/RELEASE-SHA256SUMS.txt")" = "$APK_SHA256"
+          grep -F "Source commit: $BUILD_SHA" "$dir/RELEASE-BUILD-INFO.txt"
+          grep -F "Build number: 121" "$dir/RELEASE-BUILD-INFO.txt"
+          grep -F "name='com.onekeepassmobile.hiltronix' versionCode='1000121' versionName='0.24.0-hiltronix'" "$dir/RELEASE-BADGING.txt"
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' "$dir/RELEASE-SIGNATURE.txt"
+          grep -F 'Verified using v3 scheme (APK Signature Scheme v3): true' "$dir/RELEASE-SIGNATURE.txt"
+          grep -F "Signer #1 certificate SHA-256 digest: $CERT_SHA256" "$dir/RELEASE-SIGNATURE.txt"
+          for p in INTERNET ACCESS_NETWORK_STATE CAMERA; do
+            if grep -q "android.permission.$p" "$dir/RELEASE-PERMISSIONS.txt"; then
+              echo "::error::Unexpected Android permission $p"
+              exit 1
+            fi
+          done
+          target="$RUNNER_TEMP/release"
+          file='OneKeePass-Hiltronix-Android-0.24.0-Rev-2026-10-30-1-Blue-arm64.apk'
+          cp "$apk" "$target/$file"
+          (cd "$target" && sha256sum "$file" > SHA256SUMS.txt)
+          cp "$dir/RELEASE-BUILD-INFO.txt" "$target/BUILD-INFO.txt"
+          cp "$dir/RELEASE-SIGNATURE.txt" "$target/APK-SIGNATURE.txt"
+          echo 'PASS: verified byte-identical signed build 121'
+
+      - name: Publish second GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "::error::Existing release will not be overwritten"
+            exit 1
+          fi
+          cat > "$RUNNER_TEMP/notes.md" <<'EOF'
+          ## Blue theme update
+
+          This is the **second Hiltronix release** of the customized, security-focused
+          OneKeePass Android 0.24.0 fork. It replaces the original purple-themed
+          interface with coordinated **shades of blue**.
+
+          ### What's changed from the previous Hiltronix release
+          - Header and primary button backgrounds use **#90CAF9** (RGB 144, 202, 249) in light and dark themes.
+          - Additional primary/secondary/tertiary accents, containers and selected surfaces use coordinated blue shades in place of purple, lavender and mauve.
+          - Header text and icons use dark blue **#102A3F** to remain legible on the light blue background.
+          - About screen displays **Hiltronix Revision: 2026-10-30-1**, instead of 2026-10-29-1.
+          - All previously implemented offline, KDBX safety, and authentication hardening remains in place.
+
+          **Package:** `com.onekeepassmobile.hiltronix` (arm64-v8a)
+          **Version:** `0.24.0-hiltronix`
+          **Version code:** `1000121`
+          **Signing:** The same permanent Hiltronix certificate as the preceding release.
+          **Source commit:** `a90a28a2e3d7fe36eda1fa0b629d41f9ff816d03`
+          **Build:** [Verified signed GitHub Actions #121](https://github.com/Hiltronix/OneKeePass-mobile/actions/runs/41053439137)
+
+          This APK was installed and tested by the fork maintainer, including the
+          revised colors. It can be installed over the previous Hiltronix
+          release without uninstalling or changing the signing key.
+
+          The [first release](https://github.com/Hiltronix/OneKeePass-mobile/releases/tag/android-v0.24.0-hiltronix-rev-2026-10-29-1)
+          remains available for users preferring the original theme.
+
+          This is an **unofficial fork**, not an original OneKeePass release.
+          The full security acceptance checklist and outstanding dependency
+          advisories are documented in the repository.
+          EOF
+
+          gh release create "$RELEASE_TAG" \
+            "$RUNNER_TEMP/release/OneKeePass-Hiltronix-Android-0.24.0-Rev-2026-10-30-1-Blue-arm64.apk" \
+            "$RUNNER_TEMP/release/SHA256SUMS.txt" \
+            "$RUNNER_TEMP/release/BUILD-INFO.txt" \
+            "$RUNNER_TEMP/release/APK-SIGNATURE.txt" \
+            --repo "$REPO" \
+            --target "$BUILD_SHA" \
+            --title 'OneKeePass Android 0.24.0 - Hiltronix Revision 2026-10-30-1 (Blue Theme)' \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest
+          gh release view "$RELEASE_TAG" --repo "$REPO" --json url,tagName,assets
