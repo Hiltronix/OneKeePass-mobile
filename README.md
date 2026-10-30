@@ -1,3 +1,36 @@
+# Hiltronix OneKeePass Android 0.24.0 — customized security-focused build
+
+> **Unofficial fork of [OneKeePass Mobile](https://github.com/OneKeePass/mobile).** The customized Android application is maintained on the [`security/android-logging-crypto-2026-10-28` branch](https://github.com/Hiltronix/OneKeePass-mobile/tree/security/android-logging-crypto-2026-10-28). **The `main` branch is upstream-based source, not the customized Android application.** This build is not an official OneKeePass release and is not supported by the original developers.
+
+## Why this fork exists
+
+The purpose is to retain **OneKeePass Mobile 0.24.0** as a controlled, independently signed Android password manager while reducing unnecessary network capabilities, updating selected dependencies and hardening database saving and authentication. The original KeePass/KDBX compatibility and everyday password-management functions are intended to remain intact.
+
+## Hiltronix improvements and security changes
+
+- **Version pinned to 0.24.0:** No automatic migration to later upstream versions. The customized About screen displays **Hiltronix Revision: 2026-10-29-1** underneath `v0.24.0`.
+- **Independent installation and signing:** Package `com.onekeepassmobile.hiltronix` uses a separately controlled permanent signing key. It installs independently of the official app and is not replaced by Play Store updates. Future custom updates must use the same certificate.
+- **Offline application:** Removed Android Internet/network-state permissions, SFTP/WebDAV functionality and supporting remote-storage interfaces, HTTP clients, remote-change UI, and URL-based icon downloading. Local KDBX files remain supported through Android's document picker.
+- **Camera and scanner removal:** Removed the internal QR scanner, camera permission and camera library. TOTP setup via externally obtained `otpauth://totp` links is retained.
+- **More resilient KDBX saving:** Stages encrypted recovery snapshots before overwriting an Android document; rejects incomplete and failed writes; synchronizes backup data; handles shorter files without leaving trailing bytes; and preserves recovery options following failures. Added read-only checks, partial-file cleanup, safer new-database creation and file-descriptor ownership fixes.
+- **Authentication hardening:** Restricted internal Autofill and passkey activities, used explicit immutable Autofill pending intents, cleared invalid passkey request state, and corrected biometric cancellation/failure handling.
+- **Reduced sensitive logging:** Removed or restricted sensitive diagnostic logging and unnecessary command exposure in release builds.
+- **Native startup fix:** Corrected the Rust/Botan shared C++ runtime linkage that prevented the Android APK from launching on some devices.
+- **Dependency maintenance:** Updated selected Rust cryptography/XML and JavaScript build dependencies, including `crypto-bigint`, `quick-xml`, `shell-quote`, `nanoid`, `@xmldom/xmldom`, and Babel-related tooling.
+- **Build verification:** GitHub Actions checks security-sensitive source rules, encrypted-save behavior, prohibited permissions, native library dependencies, dependency lockfiles, APK signatures and package identity. Production APKs are independently signed; no signing key is committed to source control.
+
+## Builds, testing and limitations
+
+- **Customized source:** [Hiltronix Android security branch](https://github.com/Hiltronix/OneKeePass-mobile/tree/security/android-logging-crypto-2026-10-28).
+- **Signed APK:** [Hiltronix releases](https://github.com/Hiltronix/OneKeePass-mobile/releases). Version `0.24.0-hiltronix`, revision `2026-10-29-1`, Android package `com.onekeepassmobile.hiltronix`.
+- **Device testing:** The customized app has been reported to start, open a KDBX database and display the updated About screen on Android. This does **not** mean all error-recovery, Autofill, passkey, biometric or interoperability scenarios have been certified.
+- **Residual dependency findings:** Some upstream/build-tool advisories remain under review; see the [dependency audit](https://github.com/Hiltronix/OneKeePass-mobile/blob/security/android-logging-crypto-2026-10-28/docs/HILTRONIX-ANDROID-DEPENDENCY-AUDIT-2026-10-29.md) and [device-test checklist](https://github.com/Hiltronix/OneKeePass-mobile/blob/security/android-logging-crypto-2026-10-28/docs/HILTRONIX-ANDROID-SECURITY-VALIDATION.md).
+- **Original credit:** OneKeePass and its core features were developed by the [original OneKeePass maintainers and contributors](https://github.com/OneKeePass/mobile). Hiltronix claims credit only for the modifications described here. Existing GPLv3 licensing and upstream attribution remain in effect.
+
+**Note:** The original upstream README is retained below for attribution and reference. Its references to official downloads, iOS, SFTP/WebDAV, cloud networking and other upstream features do **not** describe the customized Hiltronix Android APK.
+
+---
+
 <h1 align="center">
   <img src="./android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="OneKeePass" width="128" />
   <br>
