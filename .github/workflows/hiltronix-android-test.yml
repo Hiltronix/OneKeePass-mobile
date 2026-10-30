@@ -42,7 +42,7 @@ jobs:
       # The push exception below is intentionally single-use: only the push
       # directly following the reviewed commit can use the permanent key.
       # Future pushes return to disposable-test-only signing.
-      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '7847443cfad16f2424e2feeff606f9e5ff7ba75c')) && '1' || '0' }}
+      OKP_RELEASE_BUILD: ${{ github.ref == 'refs/heads/security/android-logging-crypto-2026-10-28' && ((github.event_name == 'workflow_dispatch' && inputs.sign_release == true) || (github.event_name == 'push' && github.event.before == '1fd642cbe68a7fe25a529b1cf3727f00ec4814eb')) && '1' || '0' }}
       CARGO_TERM_COLOR: always
 
     steps:
@@ -511,13 +511,13 @@ jobs:
                   ('onPrimary', 'rgb(16, 42, 63)'),
               ):
                   found = re.findall(
-                      r'"' + re.escape(field) + r'"\\s*:\\s*"(rgb\\([^"]+\\))"',
+                      r'"' + re.escape(field) + r'"\s*:\s*"(rgb\([^"]+\))"',
                       content
                   )
                   if found != [color, color]:
                       raise SystemExit(f'{file}: unexpected light/dark {field}: {found}')
               if 'rgb(188, 195, 255)' in re.findall(
-                  r'"primary"\\s*:\\s*"(rgb\\([^"]+\\))"', content
+                  r'"primary"\s*:\s*"(rgb\([^"]+\))"', content
               ):
                   raise SystemExit(f'{file}: obsolete purple accent')
 
