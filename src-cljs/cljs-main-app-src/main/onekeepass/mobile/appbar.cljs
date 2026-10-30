@@ -274,7 +274,7 @@
    the native text view drops the ellipsis altogether when the font is auto sized
    "
   [title ellipsize-mode]
-  [rnp-text {:style {:color @background-color
+  [rnp-text {:style {:color @on-primary-color
                      :width "100%"
                      :text-align "center"}
              :variant page-title-text-variant
@@ -291,7 +291,7 @@
    [rnp-appbar-content {:style {:zIndex -1}}]
 
    [rnp-appbar-content {:style (merge {:marginLeft 0  :position "absolute", :left 0, :right 0, :zIndex -1} style)
-                        :color @background-color
+                        :color @on-primary-color
 
                         ;; For some forms provides its own appbar title
                         :title (cond
@@ -443,15 +443,15 @@
      (cond
        (= page ENTRY_LIST_PAGE_ID)
        [rnp-appbar-back-action {:style {}
-                                :color @background-color
+                                :color @on-primary-color
                                 :onPress (fn [] (elist-events/entry-list-back-action))}]
 
        (= page MERGE_DATABASE_PAGE_ID)
-       [rnp-appbar-back-action {:color @background-color
+       [rnp-appbar-back-action {:color @on-primary-color
                                 :onPress merging-events/merge-database-back-action}]
 
        (u/contains-val? back-button-pages page)
-       [rnp-appbar-back-action {:color @background-color
+       [rnp-appbar-back-action {:color @on-primary-color
                                 :onPress cmn-events/to-previous-page}])
 
      ;; Title component 
